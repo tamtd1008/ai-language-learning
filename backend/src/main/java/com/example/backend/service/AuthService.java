@@ -5,6 +5,8 @@ import com.example.backend.dto.request.RegisterRequest;
 import com.example.backend.dto.response.AuthResponse;
 import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
+import com.example.backend.exception.DuplicateResourceException;
+import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtService;
 
@@ -34,7 +36,7 @@ public class AuthService {
         if (userRepository.existsByUsername(
                 request.getUsername())) {
 
-            throw new RuntimeException(
+            throw new DuplicateResourceException(
                     "Username already exists"
             );
         }
@@ -43,7 +45,7 @@ public class AuthService {
         if (userRepository.existsByEmail(
                 request.getEmail())) {
 
-            throw new RuntimeException(
+            throw new DuplicateResourceException(
                     "Email already exists"
             );
         }
@@ -82,7 +84,7 @@ public class AuthService {
         User user = userRepository
                 .findByUsername(request.getUsername())
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "User not found"
                         )
                 );

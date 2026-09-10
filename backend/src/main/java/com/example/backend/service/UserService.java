@@ -4,6 +4,8 @@ import com.example.backend.dto.request.ChangePasswordRequest;
 import com.example.backend.dto.request.UpdateProfileRequest;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.entity.User;
+import com.example.backend.exception.ResourceNotFoundException;
+import com.example.backend.exception.UnauthorizedException;
 import com.example.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -25,7 +27,7 @@ public class UserService {
         // Find the current user by username.
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found")
+                        new ResourceNotFoundException("User not found")
                 );
 
         // Return user information without the password.
@@ -51,7 +53,7 @@ public class UserService {
         // Find the current user by username.
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found")
+                        new ResourceNotFoundException("User not found")
                 );
 
         // Update the user's profile information.
@@ -85,7 +87,7 @@ public class UserService {
         // Find the current user by username.
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found")
+                        new ResourceNotFoundException("User not found")
                 );
 
         // Verify the current password.
@@ -93,7 +95,7 @@ public class UserService {
                 request.getCurrentPassword(),
                 user.getPassword()
         )) {
-            throw new RuntimeException(
+            throw new UnauthorizedException(
                     "Current password is incorrect"
             );
         }

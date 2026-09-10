@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.common.ApiResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.service.AdminService;
 
@@ -17,12 +18,14 @@ public class AdminController {
 
     private final AdminService adminService;
 
-    // Get all users. Admin access only.
+    // AUTH-06: Get all users. Admin access only (enforced in SecurityConfig).
     @GetMapping("/users")
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
+    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
 
         return ResponseEntity.ok(
-                adminService.getAllUsers()
+                ApiResponse.success(
+                        adminService.getAllUsers()
+                )
         );
     }
 }
