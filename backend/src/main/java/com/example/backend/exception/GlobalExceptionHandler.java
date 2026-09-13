@@ -1,5 +1,6 @@
 package com.example.backend.exception;
 
+import com.example.backend.ai.AIProviderException;
 import com.example.backend.common.ApiResponse;
 
 import lombok.extern.slf4j.Slf4j;
@@ -93,6 +94,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("You don't have permission to access this resource"));
+    }
+
+    // Handles failures from any AI provider (Ollama unreachable, Gemini
+    // API error, empty response...) - logs the real cause but tells the
+    // client only that the AI service is temporarily unavailable.
+    @ExceptionHandler(AIProviderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAIProviderException(
+            AIProviderException ex
+    ) {
+
+        log.error("AI provider error", ex);
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(ApiResponse.error(
+                        "AI service is currently unavailable. Please try again later."
+                ));
     }
 
     // Catch-all safety net. Logs the real exception for debugging but never

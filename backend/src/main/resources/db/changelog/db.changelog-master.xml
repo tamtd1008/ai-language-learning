@@ -8,6 +8,18 @@
     <!-- AUTH module -->
     <include file="db/changelog/changes/001-create-users-table.xml" relativeToChangelogFile="false"/>
 
+    <!-- SYSTEM module -->
+    <include file="db/changelog/changes/002-create-topics-table.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/003-create-ai-configs-table.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/004-create-conversation-sessions-table.xml" relativeToChangelogFile="false"/>
+
+    <!-- LEARN module -->
+    <include file="db/changelog/changes/005-create-learner-levels-table.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/006-create-vocabulary-table.xml" relativeToChangelogFile="false"/>
+
+    <!-- AI module -->
+    <include file="db/changelog/changes/007-create-conversation-messages-table.xml" relativeToChangelogFile="false"/>
+
     <!--
         Add one <include> line per new changeset file, in order, as each
         module is implemented. Naming convention: NNN-short-description.xml

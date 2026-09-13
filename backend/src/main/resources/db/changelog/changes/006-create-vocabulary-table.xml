@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!-- Matches com.example.backend.entity.Vocabulary -->
+    <changeSet id="006-create-vocabulary-table" author="backend">
+        <createTable tableName="vocabulary">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="word" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="meaning" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="example" type="VARCHAR(500)"/>
+            <column name="pronunciation" type="VARCHAR(100)"/>
+            <column name="level" type="VARCHAR(2)"/>
+            <column name="topic_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="fk_vocabulary_topic"
+                             references="topics(id)"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="vocabulary" indexName="idx_vocabulary_topic_id">
+            <column name="topic_id"/>
+        </createIndex>
+
+        <createIndex tableName="vocabulary" indexName="idx_vocabulary_level">
+            <column name="level"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

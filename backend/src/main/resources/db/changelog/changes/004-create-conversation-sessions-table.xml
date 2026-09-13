@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!-- Matches com.example.backend.entity.ConversationSession -->
+    <changeSet id="004-create-conversation-sessions-table" author="backend">
+        <createTable tableName="conversation_sessions">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_sessions_user"
+                             references="users(id)"/>
+            </column>
+            <column name="topic_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="fk_sessions_topic"
+                             references="topics(id)"/>
+            </column>
+            <column name="ai_config_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="fk_sessions_ai_config"
+                             references="ai_configs(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ended_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="conversation_sessions" indexName="idx_sessions_user_id">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
