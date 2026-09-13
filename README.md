@@ -52,6 +52,7 @@ Một số quyết định thiết kế đáng chú ý:
 - **`GlobalExceptionHandler`**: xử lý lỗi tập trung — exception nghiệp vụ (404/409/400/401), lỗi validate, lỗi xác thực, lỗi từ AI provider (502) đều trả về đúng mã HTTP và cấu trúc thống nhất, không có `RuntimeException` trả lỗi 500 mặc định.
 - **Liquibase thay `ddl-auto=update`**: schema database được quản lý bằng changelog (`db/changelog/`), có lịch sử rõ ràng, không để Hibernate tự sinh bảng.
 - **`AIProvider` interface**: các service AI không phụ thuộc trực tiếp vào Ollama/Gemini cụ thể — đổi provider chỉ cần đổi biến môi trường `AI_PROVIDER`, không sửa code.
+- **Ngữ cảnh hội thoại (AI-03) không nằm ở model**: mỗi lần gọi AI, hệ thống tự load lại toàn bộ lịch sử tin nhắn của session từ DB rồi gửi kèm — bản thân `AIProvider`/Ollama hoàn toàn stateless giữa các lần gọi.
 - **Soft delete**: các danh mục dùng chung (chủ đề, từ vựng) dùng cờ `active` thay vì xóa cứng, tránh phá dữ liệu lịch sử đã tham chiếu tới chúng.
 
 ## Cài đặt & chạy dự án
@@ -153,11 +154,13 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 | PUT | `/api/vocabulary/{id}` | Admin | Sửa từ vựng |
 | DELETE | `/api/vocabulary/{id}` | Admin | Ẩn từ vựng (soft delete) |
 
-### AI (hạ tầng)
+### AI
 
 | Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| POST | `/api/admin/ai/test-chat` | Admin | Test thủ công provider AI đang active (Ollama/Gemini/Mock) |
+| POST | `/api/sessions/{id}/messages` | User | Gửi tin nhắn trong phiên, nhận lại câu trả lời của AI (AI-01, AI-02) |
+| GET | `/api/sessions/{id}/messages` | User | Xem lịch sử tin nhắn của phiên (chỉ chủ sở hữu) |
+| POST | `/api/admin/ai/test-chat` | Admin | Test thủ công provider AI đang active (Ollama/Gemini/Mock), không qua session |
 
 ## Trạng thái các chức năng
 
@@ -165,7 +168,8 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 - [x] SYSTEM-01 → SYSTEM-03: Phiên hội thoại, chủ đề, cấu hình AI
 - [x] LEARN-01, LEARN-02: Xác định trình độ, quản lý từ vựng
 - [x] Hạ tầng AI: `AIProvider` interface, Ollama (mặc định), Gemini (cloud), Mock (test)
-- [ ] AI-01 → AI-08: Hội thoại, sửa lỗi, gợi ý, phân tích, đánh giá
+- [x] AI-01, AI-02, AI-03: Hội thoại với AI, trả lời câu hỏi, duy trì ngữ cảnh (dựa trên lịch sử tin nhắn lưu trong DB)
+- [ ] AI-04 → AI-08: Điều chỉnh độ khó, sửa lỗi ngữ pháp, gợi ý diễn đạt, phân tích câu trả lời, đánh giá kết quả
 - [ ] STT-01 → STT-04, TTS-01 → TTS-04
 - [ ] SPEECH-01 → SPEECH-05
 - [ ] SCORE-01 → SCORE-04
