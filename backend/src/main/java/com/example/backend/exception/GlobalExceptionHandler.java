@@ -2,6 +2,7 @@ package com.example.backend.exception;
 
 import com.example.backend.ai.AIProviderException;
 import com.example.backend.common.ApiResponse;
+import com.example.backend.speech.SpeechProviderException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -110,6 +111,23 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_GATEWAY)
                 .body(ApiResponse.error(
                         "AI service is currently unavailable. Please try again later."
+                ));
+    }
+
+    // Handles failures from any speech provider (Azure unreachable, no
+    // speech detected, empty audio...) - same treatment as
+    // AIProviderException, just for the STT/TTS side of things.
+    @ExceptionHandler(SpeechProviderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSpeechProviderException(
+            SpeechProviderException ex
+    ) {
+
+        log.error("Speech provider error", ex);
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(ApiResponse.error(
+                        "Speech service is currently unavailable. Please try again later."
                 ));
     }
 

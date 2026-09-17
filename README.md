@@ -53,6 +53,8 @@ Một số quyết định thiết kế đáng chú ý:
 - **Liquibase thay `ddl-auto=update`**: schema database được quản lý bằng changelog (`db/changelog/`), có lịch sử rõ ràng, không để Hibernate tự sinh bảng.
 - **`AIProvider` interface**: các service AI không phụ thuộc trực tiếp vào Ollama/Gemini cụ thể — đổi provider chỉ cần đổi biến môi trường `AI_PROVIDER`, không sửa code.
 - **Ngữ cảnh hội thoại (AI-03) không nằm ở model**: mỗi lần gọi AI, hệ thống tự load lại toàn bộ lịch sử tin nhắn của session từ DB rồi gửi kèm — bản thân `AIProvider`/Ollama hoàn toàn stateless giữa các lần gọi.
+- **`SpeechToTextProvider`/`TextToSpeechProvider` interface**: cùng pattern với `AIProvider` — đổi provider (Azure/Mock) chỉ cần đổi `SPEECH_PROVIDER`, không sửa code. Kết quả nhận diện giọng nói (STT-03) không lưu vào bảng riêng — văn bản sau khi transcribe được lưu thẳng vào `conversation_messages` giống tin nhắn gõ tay, không phân biệt nguồn gốc.
+- **Pronunciation Assessment (SPEECH-01→04) dùng chung endpoint với STT**: chỉ thêm header `Pronunciation-Assessment` (JSON base64) vào cùng request nhận diện giọng nói của Azure, không phải API riêng biệt. Lời khuyên cải thiện (SPEECH-05) tái dùng `AIProvider` để biến điểm số thô thành phản hồi tự nhiên, không phải chuỗi mẫu dựng sẵn.
 - **Soft delete**: các danh mục dùng chung (chủ đề, từ vựng) dùng cờ `active` thay vì xóa cứng, tránh phá dữ liệu lịch sử đã tham chiếu tới chúng.
 
 ## Cài đặt & chạy dự án
@@ -62,6 +64,7 @@ Một số quyết định thiết kế đáng chú ý:
 - Java 21
 - Docker (chạy PostgreSQL)
 - [Ollama](https://ollama.com) (nếu muốn dùng tính năng AI với provider mặc định)
+- Tài khoản Azure AI Speech (chỉ cần nếu muốn dùng thật STT/TTS — mặc định `SPEECH_PROVIDER=mock` nên không bắt buộc để chạy app)
 - Maven (dùng kèm `mvnw` có sẵn trong repo, không cần cài riêng)
 
 ### Các bước
@@ -158,9 +161,23 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 
 | Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| POST | `/api/sessions/{id}/messages` | User | Gửi tin nhắn trong phiên, nhận lại câu trả lời của AI (AI-01, AI-02) |
+| POST | `/api/sessions/{id}/messages` | User | Gửi tin nhắn trong phiên, nhận lại câu trả lời của AI (AI-01, AI-02) — tự điều chỉnh độ khó theo trình độ người học (AI-04) |
 | GET | `/api/sessions/{id}/messages` | User | Xem lịch sử tin nhắn của phiên (chỉ chủ sở hữu) |
+| POST | `/api/ai/grammar-check` | User | Sửa lỗi ngữ pháp cho 1 câu/đoạn văn bất kỳ, độc lập với session (AI-05) |
+| POST | `/api/ai/suggest-expression` | User | Gợi ý cách diễn đạt tự nhiên/đa dạng hơn cho 1 câu (AI-06) |
+| POST | `/api/ai/analyze-answer` | User | Phân tích câu trả lời cho 1 câu hỏi — độ liên quan, ngữ pháp, từ vựng (AI-07) |
+| POST | `/api/sessions/{id}/evaluate` | User | Đánh giá tổng thể 1 phiên hội thoại đã kết thúc (AI-08) |
 | POST | `/api/admin/ai/test-chat` | Admin | Test thủ công provider AI đang active (Ollama/Gemini/Mock), không qua session |
+
+### STT / TTS / SPEECH
+
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/speech/transcribe` | User | Upload audio (WAV/PCM/16kHz/mono), nhận lại văn bản — độc lập với session (STT-02) |
+| POST | `/api/speech/synthesize` | User | Văn bản → audio (MP3), chọn giọng/ngôn ngữ tùy ý — độc lập với session (TTS-01/02/03) |
+| POST | `/api/sessions/{id}/voice-messages` | User | Gửi tin nhắn bằng giọng nói: transcribe → lưu như tin nhắn thường → nhận lại câu trả lời text của AI (STT-03, STT-04) |
+| GET | `/api/sessions/{id}/messages/{messageId}/audio` | User | Lấy audio (MP3) của 1 tin nhắn đã lưu trong phiên — thường dùng để phát câu trả lời của AI (TTS-04) |
+| POST | `/api/speech/assess-pronunciation` | User | Upload audio + câu tham chiếu (`referenceText`), nhận lại điểm accuracy/fluency/completeness/overall, lỗi phát âm theo từng từ, và lời khuyên cải thiện do AI sinh ra (SPEECH-01→05) |
 
 ## Trạng thái các chức năng
 
@@ -169,9 +186,15 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 - [x] LEARN-01, LEARN-02: Xác định trình độ, quản lý từ vựng
 - [x] Hạ tầng AI: `AIProvider` interface, Ollama (mặc định), Gemini (cloud), Mock (test)
 - [x] AI-01, AI-02, AI-03: Hội thoại với AI, trả lời câu hỏi, duy trì ngữ cảnh (dựa trên lịch sử tin nhắn lưu trong DB)
-- [ ] AI-04 → AI-08: Điều chỉnh độ khó, sửa lỗi ngữ pháp, gợi ý diễn đạt, phân tích câu trả lời, đánh giá kết quả
-- [ ] STT-01 → STT-04, TTS-01 → TTS-04
-- [ ] SPEECH-01 → SPEECH-05
+- [x] AI-04: Điều chỉnh độ khó theo trình độ người học (LEARN-01)
+- [x] AI-05: Sửa lỗi ngữ pháp (endpoint độc lập, không cần session)
+- [x] AI-06: Gợi ý cách diễn đạt tự nhiên/đa dạng hơn
+- [x] AI-07: Phân tích câu trả lời (độ liên quan, ngữ pháp, từ vựng, đề xuất cải thiện)
+- [x] AI-08: Đánh giá kết quả học tập của 1 phiên hội thoại đã kết thúc (định tính — chưa có điểm số, xem SCORE)
+- [x] Hạ tầng Speech: `SpeechToTextProvider`/`TextToSpeechProvider` interface, Azure AI Speech (mặc định khi có key), Mock (test)
+- [x] STT-01 → STT-04: Thu âm (client-side), chuyển giọng nói thành văn bản, lưu kết quả (tái dùng bảng tin nhắn), xử lý hội thoại bằng giọng nói
+- [x] TTS-01 → TTS-04: Chuyển văn bản thành giọng nói, chọn giọng đọc, chọn ngôn ngữ, phát âm thanh phản hồi AI
+- [x] SPEECH-01 → SPEECH-05: Đánh giá, chấm điểm, độ trôi chảy, phát hiện lỗi phát âm theo từng từ, hướng dẫn cải thiện (AI-generated)
 - [ ] SCORE-01 → SCORE-04
 - [ ] PROGRESS-01 → PROGRESS-06
 - [ ] LEARN-03 → LEARN-08: Ngữ pháp, nghe, nói, phát âm, hội thoại theo chủ đề, đề xuất nội dung

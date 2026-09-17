@@ -16,6 +16,9 @@ import com.example.backend.exception.BadRequestException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.ConversationMessageRepository;
 import com.example.backend.repository.ConversationSessionRepository;
+import com.example.backend.repository.LearnerLevelRepository;
+import com.example.backend.speech.TextToSpeechProvider;
+import com.example.backend.speech.TtsRequest;
 
 import lombok.RequiredArgsConstructor;
 
@@ -43,7 +46,11 @@ public class ConversationService {
 
     private final ConversationMessageRepository messageRepository;
 
+    private final LearnerLevelRepository learnerLevelRepository;
+
     private final AIProvider aiProvider;
+
+    private final TextToSpeechProvider textToSpeechProvider;
 
     // AI-01/AI-02: send a learner message, get the AI's reply back.
     // Both the learner's message and the AI's reply are persisted, in
@@ -125,10 +132,40 @@ public class ConversationService {
                 .toList();
     }
 
-    // AI-01 context: combines the session's AiConfig prompt (if any)
-    // with the session's topic (if any), so a session about "Travel"
-    // actually steers the model toward that topic instead of a generic
-    // conversation.
+    // TTS-04: synthesize audio for one already-saved message in this
+    // session - typically the AI's reply, so it can be played back.
+    // Re-synthesizes on every call rather than caching; fine for now
+    // given conversation turns are short, revisit if this gets costly.
+    public byte[] getMessageAudio(
+            String username,
+            Long sessionId,
+            Long messageId
+    ) {
+
+        ConversationSession session = findOwnedSessionOrThrow(
+                username,
+                sessionId
+        );
+
+        ConversationMessage message = messageRepository.findById(messageId)
+                .filter(m -> m.getSession().getId().equals(session.getId()))
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Message not found"
+                        )
+                );
+
+        return textToSpeechProvider.synthesize(
+                TtsRequest.builder()
+                        .text(message.getContent())
+                        .build()
+        );
+    }
+
+    // AI-01 context: combines the session's AiConfig prompt (if any),
+    // the session's topic (if any), and the learner's current level
+    // (AI-04) - so the same conversation reads very differently for an
+    // A1 learner versus a C1 learner, using the exact same AiConfig.
     private String buildSystemPrompt(ConversationSession session) {
 
         StringBuilder prompt = new StringBuilder();
@@ -159,6 +196,22 @@ public class ConversationService {
 
             prompt.append(". Keep the conversation focused on this topic.");
         }
+
+        // AI-04: adjust vocabulary/sentence complexity to the learner's
+        // self-assessed (or later, AI-assessed) CEFR level. Silently
+        // skipped if the learner hasn't set a level yet (LEARN-01) -
+        // the conversation still works, just without this tailoring.
+        learnerLevelRepository
+                .findByUserId(session.getUser().getId())
+                .ifPresent(learnerLevel -> prompt
+                        .append(" The learner's current level is ")
+                        .append(learnerLevel.getLevel().name())
+                        .append(" (CEFR). Adjust your vocabulary and ")
+                        .append("sentence complexity to match this level - ")
+                        .append("simple, short sentences for A1/A2; more ")
+                        .append("natural and varied phrasing for B1/B2; ")
+                        .append("idiomatic and nuanced language for C1/C2.")
+                );
 
         return prompt.toString();
     }
