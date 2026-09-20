@@ -4,12 +4,14 @@ import com.example.backend.common.ApiResponse;
 import com.example.backend.dto.request.SendMessageRequest;
 import com.example.backend.dto.request.StartSessionRequest;
 import com.example.backend.dto.response.MessageResponse;
+import com.example.backend.dto.response.ScoreResponse;
 import com.example.backend.dto.response.SessionEvaluationResponse;
 import com.example.backend.dto.response.SessionResponse;
 import com.example.backend.dto.response.VoiceMessageResponse;
 import com.example.backend.exception.BadRequestException;
 import com.example.backend.service.ConversationService;
 import com.example.backend.service.ConversationSessionService;
+import com.example.backend.service.ScoreService;
 import com.example.backend.service.SessionEvaluationService;
 import com.example.backend.service.VoiceConversationService;
 
@@ -29,10 +31,11 @@ import java.util.List;
 
 // SYSTEM-01: conversation session lifecycle, plus AI-01/AI-02/AI-03
 // (sending messages within a session and reading its history), AI-08
-// (evaluating a session once it's ended), and STT-04/TTS-04 (voice
-// turns within a session). Every endpoint here acts on behalf of the
-// currently authenticated user (Authentication.getName()) - there is
-// no admin override yet, ownership is always required.
+// (evaluating a session once it's ended), STT-04/TTS-04 (voice turns
+// within a session), and SCORE-01→04 (numeric scoring of a completed
+// session). Every endpoint here acts on behalf of the currently
+// authenticated user (Authentication.getName()) - there is no admin
+// override yet, ownership is always required.
 @RestController
 @RequestMapping("/api/sessions")
 @RequiredArgsConstructor
@@ -45,6 +48,8 @@ public class SessionController {
     private final SessionEvaluationService sessionEvaluationService;
 
     private final VoiceConversationService voiceConversationService;
+
+    private final ScoreService scoreService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<SessionResponse>> startSession(
@@ -224,5 +229,41 @@ public class SessionController {
         return ResponseEntity.ok()
                 .contentType(MediaType.valueOf("audio/mpeg"))
                 .body(audio);
+    }
+
+    // SCORE-01/02/03/04: compute (or re-compute) numeric scores for a
+    // completed session. Safe to call more than once - each call
+    // updates the same score row rather than creating a duplicate.
+    @PostMapping("/{id}/score")
+    public ResponseEntity<ApiResponse<ScoreResponse>> computeScore(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Score computed successfully",
+                        scoreService.computeScore(
+                                authentication.getName(),
+                                id
+                        )
+                )
+        );
+    }
+
+    @GetMapping("/{id}/score")
+    public ResponseEntity<ApiResponse<ScoreResponse>> getScore(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        scoreService.getScore(
+                                authentication.getName(),
+                                id
+                        )
+                )
+        );
     }
 }

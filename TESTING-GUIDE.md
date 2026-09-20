@@ -47,6 +47,12 @@ Mọi request bên dưới (trừ login) cần header `Authorization: Bearer <to
 | 33 | STT | POST | `/api/sessions/{id}/voice-messages` |
 | 34 | TTS | GET | `/api/sessions/{id}/messages/{messageId}/audio` |
 | 35 | SPEECH | POST | `/api/speech/assess-pronunciation` |
+| 36 | SCORE | POST | `/api/sessions/{id}/score` |
+| 37 | SCORE | GET | `/api/sessions/{id}/score` |
+| 38 | PROGRESS | PUT | `/api/progress/vocabulary/{vocabularyId}` |
+| 39 | PROGRESS | GET | `/api/progress/vocabulary` |
+| 40 | PROGRESS | DELETE | `/api/progress/vocabulary/{vocabularyId}` |
+| 41 | PROGRESS | GET | `/api/progress/summary` |
 
 Chi tiết từng bước, kèm body mẫu và kỳ vọng, ở các mục bên dưới.
 
@@ -234,6 +240,46 @@ Cùng điều kiện provider như mục 10 (mặc định `mock` trả điểm 
 | 11.5 | (Chỉ test được với Azure thật) | đọc đúng hoàn toàn, rõ ràng | user | — | các score đều cao (>80), `words` toàn `errorType:"None"`, `feedback` mang tính khích lệ + 1 mẹo nhỏ để tự nhiên hơn |
 
 > Nếu dùng Azure thật mà bị 502, các nguyên nhân giống mục 10 (sai region, sai key, sai định dạng audio) — kiểm tra theo đúng thứ tự đó trước.
+
+---
+
+---
+
+## 12. SCORE-01→04 — Chấm điểm
+
+Dùng session **ENDED** đã có tin nhắn (ví dụ session ở mục 4 hoặc 6, sau khi đã `PUT .../end`).
+
+| # | Method | Endpoint | Token | Body | Kỳ vọng |
+|---|---|---|---|---|---|
+| 12.1 | POST | `/api/sessions/{id}/score` | user | session đang **ACTIVE** (chưa end) | 400 `Only ended sessions can be scored - end the session first` |
+| 12.2 | PUT | `/api/sessions/{id}/end` | user | — | 200 (nếu chưa end ở bước trước) |
+| 12.3 | POST | `/api/sessions/{id}/score` | user | — | 200, có `grammarScore`, `vocabularyScore`, `conversationScore` (0-100), và `overallScore` **đúng bằng trung bình cộng 3 điểm kia** (tự kiểm tra bằng máy tính) |
+| 12.4 | GET | `/api/sessions/{id}/score` | user | — | 200, dữ liệu khớp với 12.3 |
+| 12.5 | POST | `/api/sessions/{id}/score` | user | gọi lại lần 2 | 200, điểm có thể khác lần trước (AI chấm lại từ đầu) nhưng vẫn chỉ có 1 bản ghi — kiểm tra `GET` không thấy 2 điểm trùng |
+| 12.6 | GET | `/api/sessions/{id}/score` | user | session **ENDED** khác, chưa từng chấm | 404 `This session has not been scored yet` |
+| 12.7 | POST | `/api/sessions/{id}/score` | **admin** (không phải chủ session) | — | 404 `Session not found` |
+
+> Nếu `AI_PROVIDER=mock`: điểm trả về sẽ không có ý nghĩa thật (mock chỉ echo, không chấm điểm) — có thể request thất bại với 502 `Could not compute a score - the AI did not return valid grading data` vì mock không trả JSON đúng cấu trúc `{grammarScore, vocabularyScore, conversationScore}`. Đây là hành vi đúng, không phải bug — dùng Ollama/Gemini thật để test mục này.
+
+---
+
+---
+
+## 13. PROGRESS-01→06 — Lịch sử & thống kê
+
+PROGRESS-01/02 (lưu lịch sử) không có endpoint riêng — tự kiểm chứng qua các API đã test ở mục 3, 4, 12 (`GET /api/sessions/me`, `GET /api/sessions/{id}/messages`, `GET /api/sessions/{id}/score` đều đã lưu sẵn). Mục này chỉ test phần **mới**: theo dõi từ vựng + thống kê tổng hợp.
+
+| # | Method | Endpoint | Token | Body | Kỳ vọng |
+|---|---|---|---|---|---|
+| 13.1 | PUT | `/api/progress/vocabulary/{id}` | user | `{"status":"LEARNING"}`, `id` là 1 từ ở mục 8 | 200, `status:"LEARNING"` |
+| 13.2 | PUT | `/api/progress/vocabulary/{id}` | user | `{"status":"LEARNED"}`, cùng `id` như 13.1 | 200, `status:"LEARNED"` — cập nhật đè, không tạo bản ghi mới |
+| 13.3 | PUT | `/api/progress/vocabulary/{id}` | user | `{"status":"MASTERED"}` (sai giá trị) | 400 `Status must be one of: LEARNING, LEARNED` |
+| 13.4 | PUT | `/api/progress/vocabulary/999999` | user | `{"status":"LEARNED"}` | 404 `Vocabulary not found` |
+| 13.5 | GET | `/api/progress/vocabulary` | user | — | 200, thấy từ vừa đánh dấu |
+| 13.6 | GET | `/api/progress/vocabulary?status=LEARNED` | user | — | 200, chỉ thấy từ `LEARNED` |
+| 13.7 | DELETE | `/api/progress/vocabulary/{id}` | user | — | 200, sau đó `GET /api/progress/vocabulary` không còn thấy từ này |
+| 13.8 | GET | `/api/progress/summary` | user (tài khoản mới, chưa làm gì) | — | 200, `totalSessions:0`, `averageOverallScore:null` (không phải `0`), `currentLevel:null`, `scoreHistory:[]` |
+| 13.9 | GET | `/api/progress/summary` | user (đã có session/điểm từ mục 4, 12) | — | 200, `totalSessions` và `totalMessagesSent` khớp số liệu thực tế, `averageOverallScore` khớp điểm đã chấm, `scoreHistory` sắp theo thời gian tăng dần |
 
 ---
 

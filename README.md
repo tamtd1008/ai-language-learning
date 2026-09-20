@@ -55,6 +55,8 @@ Một số quyết định thiết kế đáng chú ý:
 - **Ngữ cảnh hội thoại (AI-03) không nằm ở model**: mỗi lần gọi AI, hệ thống tự load lại toàn bộ lịch sử tin nhắn của session từ DB rồi gửi kèm — bản thân `AIProvider`/Ollama hoàn toàn stateless giữa các lần gọi.
 - **`SpeechToTextProvider`/`TextToSpeechProvider` interface**: cùng pattern với `AIProvider` — đổi provider (Azure/Mock) chỉ cần đổi `SPEECH_PROVIDER`, không sửa code. Kết quả nhận diện giọng nói (STT-03) không lưu vào bảng riêng — văn bản sau khi transcribe được lưu thẳng vào `conversation_messages` giống tin nhắn gõ tay, không phân biệt nguồn gốc.
 - **Pronunciation Assessment (SPEECH-01→04) dùng chung endpoint với STT**: chỉ thêm header `Pronunciation-Assessment` (JSON base64) vào cùng request nhận diện giọng nói của Azure, không phải API riêng biệt. Lời khuyên cải thiện (SPEECH-05) tái dùng `AIProvider` để biến điểm số thô thành phản hồi tự nhiên, không phải chuỗi mẫu dựng sẵn.
+- **Điểm tổng hợp (SCORE-04) không để AI tự cộng**: AI chỉ chấm 3 điểm thành phần (ngữ pháp/từ vựng/hội thoại), `overallScore` là trung bình cộng do code tính — tránh trường hợp AI cộng/làm tròn sai, đảm bảo luôn nhất quán với 3 điểm kia.
+- **PROGRESS-01/02 không cần code riêng**: lịch sử học tập/hội thoại đã tự động được lưu từ lúc các module trước ghi dữ liệu (session, tin nhắn, điểm số) — `ProgressService` chỉ đọc lại và tổng hợp, không có bảng hay logic lưu trữ mới nào cho 2 mục này.
 - **Soft delete**: các danh mục dùng chung (chủ đề, từ vựng) dùng cờ `active` thay vì xóa cứng, tránh phá dữ liệu lịch sử đã tham chiếu tới chúng.
 
 ## Cài đặt & chạy dự án
@@ -179,6 +181,22 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 | GET | `/api/sessions/{id}/messages/{messageId}/audio` | User | Lấy audio (MP3) của 1 tin nhắn đã lưu trong phiên — thường dùng để phát câu trả lời của AI (TTS-04) |
 | POST | `/api/speech/assess-pronunciation` | User | Upload audio + câu tham chiếu (`referenceText`), nhận lại điểm accuracy/fluency/completeness/overall, lỗi phát âm theo từng từ, và lời khuyên cải thiện do AI sinh ra (SPEECH-01→05) |
 
+### SCORE
+
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/sessions/{id}/score` | User | Chấm điểm ngữ pháp/từ vựng/hội thoại cho 1 phiên đã kết thúc, tính điểm tổng hợp (SCORE-01→04). Gọi lại sẽ chấm lại, ghi đè điểm cũ |
+| GET | `/api/sessions/{id}/score` | User | Xem điểm đã chấm của 1 phiên (404 nếu chưa chấm lần nào) |
+
+### PROGRESS
+
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| PUT | `/api/progress/vocabulary/{vocabularyId}` | User | Đánh dấu 1 từ là `LEARNING` hoặc `LEARNED` (PROGRESS-04) |
+| GET | `/api/progress/vocabulary` | User | Danh sách từ đang theo dõi, lọc được theo `status` |
+| DELETE | `/api/progress/vocabulary/{vocabularyId}` | User | Bỏ theo dõi 1 từ |
+| GET | `/api/progress/summary` | User | Thống kê tổng hợp: tổng số phiên, tổng tin nhắn đã gửi, điểm trung bình, trình độ hiện tại, số từ đã học, và lịch sử điểm theo thời gian (PROGRESS-05, 06) |
+
 ## Trạng thái các chức năng
 
 - [x] AUTH-01 → AUTH-06: Đăng ký, đăng nhập, đăng xuất, quản lý cá nhân, đổi mật khẩu, phân quyền
@@ -195,8 +213,8 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 - [x] STT-01 → STT-04: Thu âm (client-side), chuyển giọng nói thành văn bản, lưu kết quả (tái dùng bảng tin nhắn), xử lý hội thoại bằng giọng nói
 - [x] TTS-01 → TTS-04: Chuyển văn bản thành giọng nói, chọn giọng đọc, chọn ngôn ngữ, phát âm thanh phản hồi AI
 - [x] SPEECH-01 → SPEECH-05: Đánh giá, chấm điểm, độ trôi chảy, phát hiện lỗi phát âm theo từng từ, hướng dẫn cải thiện (AI-generated)
-- [ ] SCORE-01 → SCORE-04
-- [ ] PROGRESS-01 → PROGRESS-06
+- [x] SCORE-01 → SCORE-04: Chấm điểm ngữ pháp, từ vựng, hội thoại (AI), điểm tổng hợp (tính trong code, không nhờ AI cộng)
+- [x] PROGRESS-01 → PROGRESS-06: Lưu lịch sử học tập/hội thoại (tự động, không cần API riêng), theo dõi điểm số theo thời gian, theo dõi từ vựng đã học, thống kê tổng hợp
 - [ ] LEARN-03 → LEARN-08: Ngữ pháp, nghe, nói, phát âm, hội thoại theo chủ đề, đề xuất nội dung
 - [ ] ROBOT-01 → ROBOT-08
 

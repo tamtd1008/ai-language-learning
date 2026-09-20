@@ -11,6 +11,8 @@ public interface ConversationSessionRepository extends JpaRepository<Conversatio
 
     List<ConversationSession> findByUserIdOrderByStartedAtDesc(Long userId);
 
+    long countByUserId(Long userId);
+
     // Used to enforce ownership in one query instead of "find then check
     // owner in Java" - also means a wrong-owner lookup and a genuinely
     // missing id are indistinguishable (both empty), which is what we

@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Sample starter data - ~5 rows per table, in FK dependency order.
+        All seeded users share the password: Passw0rd!
+        (bcrypt hash below, cost 10, generated offline - matches what
+        Spring Security's default BCryptPasswordEncoder produces/reads).
+
+        Only runs once (tracked in databasechangelog, like every other
+        changeset here). If you already created rows with the same
+        natural keys by hand (e.g. a topic literally named "Travel" -
+        the TESTING-GUIDE.md examples use that exact name), the unique
+        constraint on topics.name / users.username will make this fail.
+        Safest: reset the DB first (docker compose down -v && up -d)
+        so this applies to a clean schema.
+    -->
+
+    <!-- ============================================================ -->
+    <!-- users (5 sample learners, password: Passw0rd! for all)       -->
+    <!-- ============================================================ -->
+    <changeSet id="008-seed-users" author="backend">
+        <insert tableName="users">
+            <column name="username" value="hannah_le"/>
+            <column name="password" value="$2b$10$.Q0caf2KlCPrcwXb8IP4qeF33LSbh5GDpeXOD9lkmnBt3xopW.VUi"/>
+            <column name="email" value="hannah.le@example.com"/>
+            <column name="first_name" value="Hannah"/>
+            <column name="last_name" value="Le"/>
+            <column name="role" value="USER"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="users">
+            <column name="username" value="minh_tran"/>
+            <column name="password" value="$2b$10$.Q0caf2KlCPrcwXb8IP4qeF33LSbh5GDpeXOD9lkmnBt3xopW.VUi"/>
+            <column name="email" value="minh.tran@example.com"/>
+            <column name="first_name" value="Minh"/>
+            <column name="last_name" value="Tran"/>
+            <column name="role" value="USER"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="users">
+            <column name="username" value="lisa_pham"/>
+            <column name="password" value="$2b$10$.Q0caf2KlCPrcwXb8IP4qeF33LSbh5GDpeXOD9lkmnBt3xopW.VUi"/>
+            <column name="email" value="lisa.pham@example.com"/>
+            <column name="first_name" value="Lisa"/>
+            <column name="last_name" value="Pham"/>
+            <column name="role" value="USER"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="users">
+            <column name="username" value="khoa_nguyen"/>
+            <column name="password" value="$2b$10$.Q0caf2KlCPrcwXb8IP4qeF33LSbh5GDpeXOD9lkmnBt3xopW.VUi"/>
+            <column name="email" value="khoa.nguyen@example.com"/>
+            <column name="first_name" value="Khoa"/>
+            <column name="last_name" value="Nguyen"/>
+            <column name="role" value="USER"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="users">
+            <column name="username" value="anna_vo"/>
+            <column name="password" value="$2b$10$.Q0caf2KlCPrcwXb8IP4qeF33LSbh5GDpeXOD9lkmnBt3xopW.VUi"/>
+            <column name="email" value="anna.vo@example.com"/>
+            <column name="first_name" value="Anna"/>
+            <column name="last_name" value="Vo"/>
+            <column name="role" value="USER"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- topics                                                        -->
+    <!-- ============================================================ -->
+    <changeSet id="008-seed-topics" author="backend">
+        <insert tableName="topics">
+            <column name="name" value="Travel &amp; Tourism"/>
+            <column name="description" value="Booking trips, airports, hotels, asking for directions"/>
+            <column name="level" value="A2"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="topics">
+            <column name="name" value="Food &amp; Dining"/>
+            <column name="description" value="Ordering at restaurants, describing dishes, dietary preferences"/>
+            <column name="level" value="A1"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="topics">
+            <column name="name" value="Job Interview"/>
+            <column name="description" value="Common interview questions, talking about experience and skills"/>
+            <column name="level" value="B2"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="topics">
+            <column name="name" value="Daily Life"/>
+            <column name="description" value="Routines, chores, small talk about everyday activities"/>
+            <column name="level" value="A1"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="topics">
+            <column name="name" value="Technology"/>
+            <column name="description" value="Talking about apps, gadgets, and how technology affects daily life"/>
+            <column name="level" value="B1"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- ai_configs (exactly one active=true, matching the app's       -->
+    <!-- "only one config active at a time" invariant)                 -->
+    <!-- ============================================================ -->
+    <changeSet id="008-seed-ai-configs" author="backend">
+        <insert tableName="ai_configs">
+            <column name="name" value="default-conversation"/>
+            <column name="provider" value="ollama"/>
+            <column name="model" value="qwen3:4b"/>
+            <column name="system_prompt" value="You are a friendly, encouraging foreign-language conversation tutor. Keep replies concise and correct mistakes gently."/>
+            <column name="temperature" valueNumeric="0.7"/>
+            <column name="max_tokens" valueNumeric="1024"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="ai_configs">
+            <column name="name" value="grammar-focused"/>
+            <column name="provider" value="ollama"/>
+            <column name="model" value="qwen3:4b"/>
+            <column name="system_prompt" value="You are a strict grammar-focused tutor. Point out every grammar mistake explicitly before continuing the conversation."/>
+            <column name="temperature" valueNumeric="0.3"/>
+            <column name="max_tokens" valueNumeric="1024"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="ai_configs">
+            <column name="name" value="fluency-practice"/>
+            <column name="provider" value="gemini"/>
+            <column name="model" value="gemini-2.5-flash"/>
+            <column name="system_prompt" value="You are a conversation partner focused on fluency - keep the conversation flowing naturally, only correct major errors."/>
+            <column name="temperature" valueNumeric="0.9"/>
+            <column name="max_tokens" valueNumeric="512"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="ai_configs">
+            <column name="name" value="beginner-friendly"/>
+            <column name="provider" value="ollama"/>
+            <column name="model" value="qwen3:4b"/>
+            <column name="system_prompt" value="You are talking to an absolute beginner. Use very simple words and short sentences, and explain any word they might not know."/>
+            <column name="temperature" valueNumeric="0.5"/>
+            <column name="max_tokens" valueNumeric="512"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="ai_configs">
+            <column name="name" value="advanced-debate"/>
+            <column name="provider" value="gemini"/>
+            <column name="model" value="gemini-2.5-flash"/>
+            <column name="system_prompt" value="You are an advanced debate partner. Challenge the learner's opinions respectfully and use nuanced, idiomatic language."/>
+            <column name="temperature" valueNumeric="0.8"/>
+            <column name="max_tokens" valueNumeric="1536"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- learner_levels (one per seeded user)                          -->
+    <!-- ============================================================ -->
+    <changeSet id="008-seed-learner-levels" author="backend">
+        <insert tableName="learner_levels">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'hannah_le')"/>
+            <column name="level" value="A2"/>
+            <column name="source" value="SELF_ASSESSED"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="learner_levels">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'minh_tran')"/>
+            <column name="level" value="B1"/>
+            <column name="source" value="SELF_ASSESSED"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="learner_levels">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'lisa_pham')"/>
+            <column name="level" value="B2"/>
+            <column name="source" value="SELF_ASSESSED"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="learner_levels">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'khoa_nguyen')"/>
+            <column name="level" value="A1"/>
+            <column name="source" value="SELF_ASSESSED"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="learner_levels">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'anna_vo')"/>
+            <column name="level" value="C1"/>
+            <column name="source" value="SELF_ASSESSED"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- vocabulary (linked to topics)                                 -->
+    <!-- ============================================================ -->
+    <changeSet id="008-seed-vocabulary" author="backend">
+        <insert tableName="vocabulary">
+            <column name="word" value="itinerary"/>
+            <column name="meaning" value="lịch trình"/>
+            <column name="example" value="Here is our travel itinerary for the week."/>
+            <column name="pronunciation" value="/aɪˈtɪnəreri/"/>
+            <column name="level" value="B1"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Travel &amp; Tourism')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="vocabulary">
+            <column name="word" value="passport"/>
+            <column name="meaning" value="hộ chiếu"/>
+            <column name="example" value="Don't forget to bring your passport."/>
+            <column name="pronunciation" value="/ˈpæspɔːrt/"/>
+            <column name="level" value="A2"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Travel &amp; Tourism')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="vocabulary">
+            <column name="word" value="appetizer"/>
+            <column name="meaning" value="món khai vị"/>
+            <column name="example" value="We ordered spring rolls as an appetizer."/>
+            <column name="pronunciation" value="/ˈæpɪtaɪzər/"/>
+            <column name="level" value="A1"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Food &amp; Dining')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="vocabulary">
+            <column name="word" value="resume"/>
+            <column name="meaning" value="sơ yếu lý lịch"/>
+            <column name="example" value="Please attach your resume to the email."/>
+            <column name="pronunciation" value="/ˈrɛzʊmeɪ/"/>
+            <column name="level" value="B2"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Job Interview')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="vocabulary">
+            <column name="word" value="software"/>
+            <column name="meaning" value="phần mềm"/>
+            <column name="example" value="This software update fixed several bugs."/>
+            <column name="pronunciation" value="/ˈsɔːftwɛr/"/>
+            <column name="level" value="B1"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Technology')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- conversation_sessions (one per seeded user)                   -->
+    <!-- ============================================================ -->
+    <changeSet id="008-seed-conversation-sessions" author="backend">
+        <insert tableName="conversation_sessions">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'hannah_le')"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Travel &amp; Tourism')"/>
+            <column name="ai_config_id" valueComputed="(SELECT id FROM ai_configs WHERE name = 'default-conversation')"/>
+            <column name="status" value="ENDED"/>
+            <column name="started_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '2 days'"/>
+            <column name="ended_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '15 minutes'"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '2 days'"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '15 minutes'"/>
+        </insert>
+        <insert tableName="conversation_sessions">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'minh_tran')"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Food &amp; Dining')"/>
+            <column name="ai_config_id" valueComputed="(SELECT id FROM ai_configs WHERE name = 'default-conversation')"/>
+            <column name="status" value="ENDED"/>
+            <column name="started_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '1 day'"/>
+            <column name="ended_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '1 day' + INTERVAL '10 minutes'"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '1 day'"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '1 day' + INTERVAL '10 minutes'"/>
+        </insert>
+        <insert tableName="conversation_sessions">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'lisa_pham')"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Job Interview')"/>
+            <column name="ai_config_id" valueComputed="(SELECT id FROM ai_configs WHERE name = 'default-conversation')"/>
+            <column name="status" value="ACTIVE"/>
+            <column name="started_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="conversation_sessions">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'khoa_nguyen')"/>
+            <column name="ai_config_id" valueComputed="(SELECT id FROM ai_configs WHERE name = 'default-conversation')"/>
+            <column name="status" value="ENDED"/>
+            <column name="started_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '3 days'"/>
+            <column name="ended_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '3 days' + INTERVAL '5 minutes'"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '3 days'"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '3 days' + INTERVAL '5 minutes'"/>
+        </insert>
+        <insert tableName="conversation_sessions">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'anna_vo')"/>
+            <column name="topic_id" valueComputed="(SELECT id FROM topics WHERE name = 'Technology')"/>
+            <column name="ai_config_id" valueComputed="(SELECT id FROM ai_configs WHERE name = 'default-conversation')"/>
+            <column name="status" value="ACTIVE"/>
+            <column name="started_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- conversation_messages (a short exchange in 2 of the sessions  -->
+    <!-- above - identified by the session owner's username, since     -->
+    <!-- each seeded user has exactly one seeded session)               -->
+    <!-- ============================================================ -->
+    <changeSet id="008-seed-conversation-messages" author="backend">
+        <insert tableName="conversation_messages">
+            <column name="session_id" valueComputed="(SELECT cs.id FROM conversation_sessions cs JOIN users u ON cs.user_id = u.id WHERE u.username = 'hannah_le')"/>
+            <column name="role" value="USER"/>
+            <column name="content" value="Hello! I'm planning a trip to Japan next month."/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '2 days'"/>
+        </insert>
+        <insert tableName="conversation_messages">
+            <column name="session_id" valueComputed="(SELECT cs.id FROM conversation_sessions cs JOIN users u ON cs.user_id = u.id WHERE u.username = 'hannah_le')"/>
+            <column name="role" value="ASSISTANT"/>
+            <column name="content" value="That sounds exciting! Have you decided which cities you'll visit?"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '10 seconds'"/>
+        </insert>
+        <insert tableName="conversation_messages">
+            <column name="session_id" valueComputed="(SELECT cs.id FROM conversation_sessions cs JOIN users u ON cs.user_id = u.id WHERE u.username = 'hannah_le')"/>
+            <column name="role" value="USER"/>
+            <column name="content" value="Tokyo and Kyoto. What phrases should I learn first?"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '40 seconds'"/>
+        </insert>
+        <insert tableName="conversation_messages">
+            <column name="session_id" valueComputed="(SELECT cs.id FROM conversation_sessions cs JOIN users u ON cs.user_id = u.id WHERE u.username = 'minh_tran')"/>
+            <column name="role" value="USER"/>
+            <column name="content" value="Can you recommend a Vietnamese dish for a beginner cook?"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '1 day'"/>
+        </insert>
+        <insert tableName="conversation_messages">
+            <column name="session_id" valueComputed="(SELECT cs.id FROM conversation_sessions cs JOIN users u ON cs.user_id = u.id WHERE u.username = 'minh_tran')"/>
+            <column name="role" value="ASSISTANT"/>
+            <column name="content" value="Pho is a great choice - it's forgiving and the broth teaches you a lot about balancing flavors."/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP - INTERVAL '1 day' + INTERVAL '8 seconds'"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

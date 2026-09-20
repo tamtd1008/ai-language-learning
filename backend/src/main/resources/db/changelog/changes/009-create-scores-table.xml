@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!-- Matches com.example.backend.entity.Score -->
+    <changeSet id="009-create-scores-table" author="backend">
+        <createTable tableName="scores">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="session_id" type="BIGINT">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="uk_scores_session"
+                             foreignKeyName="fk_scores_session"
+                             references="conversation_sessions(id)"/>
+            </column>
+            <column name="grammar_score" type="DOUBLE"/>
+            <column name="vocabulary_score" type="DOUBLE"/>
+            <column name="conversation_score" type="DOUBLE"/>
+            <column name="overall_score" type="DOUBLE"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
