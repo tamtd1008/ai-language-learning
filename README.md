@@ -57,6 +57,8 @@ Một số quyết định thiết kế đáng chú ý:
 - **Pronunciation Assessment (SPEECH-01→04) dùng chung endpoint với STT**: chỉ thêm header `Pronunciation-Assessment` (JSON base64) vào cùng request nhận diện giọng nói của Azure, không phải API riêng biệt. Lời khuyên cải thiện (SPEECH-05) tái dùng `AIProvider` để biến điểm số thô thành phản hồi tự nhiên, không phải chuỗi mẫu dựng sẵn.
 - **Điểm tổng hợp (SCORE-04) không để AI tự cộng**: AI chỉ chấm 3 điểm thành phần (ngữ pháp/từ vựng/hội thoại), `overallScore` là trung bình cộng do code tính — tránh trường hợp AI cộng/làm tròn sai, đảm bảo luôn nhất quán với 3 điểm kia.
 - **PROGRESS-01/02 không cần code riêng**: lịch sử học tập/hội thoại đã tự động được lưu từ lúc các module trước ghi dữ liệu (session, tin nhắn, điểm số) — `ProgressService` chỉ đọc lại và tổng hợp, không có bảng hay logic lưu trữ mới nào cho 2 mục này.
+- **Bài tập LEARN-03/04 không lưu DB**: sinh đề và chấm đều stateless — lúc chấm, client tự gửi lại nguyên văn câu hỏi/đoạn văn kèm câu trả lời, AI chấm trực tiếp thay vì so với đáp án lưu sẵn. Đơn giản hơn, và sinh đề với chấm đề không bao giờ lệch pha nhau.
+- **LEARN-08 không để AI chọn ID**: AI chỉ viết đoạn lời khuyên bằng lời — chủ đề/từ vựng đề xuất cụ thể luôn đến từ query SQL thật (topic/từ chưa từng dùng/học), tránh rủi ro AI bịa ra ID không tồn tại trong DB.
 - **Soft delete**: các danh mục dùng chung (chủ đề, từ vựng) dùng cờ `active` thay vì xóa cứng, tránh phá dữ liệu lịch sử đã tham chiếu tới chúng.
 
 ## Cài đặt & chạy dự án
@@ -197,6 +199,22 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 | DELETE | `/api/progress/vocabulary/{vocabularyId}` | User | Bỏ theo dõi 1 từ |
 | GET | `/api/progress/summary` | User | Thống kê tổng hợp: tổng số phiên, tổng tin nhắn đã gửi, điểm trung bình, trình độ hiện tại, số từ đã học, và lịch sử điểm theo thời gian (PROGRESS-05, 06) |
 
+### LEARN nâng cao (LEARN-03 → LEARN-08)
+
+Body của các endpoint sinh đề (`GenerateExerciseRequest`) đều nhận `{"level": "B1", "topicId": 3}` — cả 2 field tùy chọn: thiếu `level` sẽ dùng trình độ hiện tại của người học (LEARN-01), thiếu cả 2 sẽ mặc định `A2`.
+
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/learn/grammar/exercise` | User | Sinh 1 câu hỏi ngữ pháp theo trình độ/chủ đề (LEARN-03) |
+| POST | `/api/learn/grammar/exercise/check` | User | Chấm câu trả lời cho câu hỏi ngữ pháp vừa sinh |
+| POST | `/api/learn/listening/exercise` | User | Sinh 1 đoạn văn ngắn + câu hỏi hiểu bài (LEARN-04). Lấy audio đoạn văn qua `/api/speech/synthesize` |
+| POST | `/api/learn/listening/exercise/check` | User | Chấm câu trả lời cho bài nghe hiểu |
+| POST | `/api/learn/speaking/prompt` | User | Sinh 1 đề bài luyện nói (LEARN-05). Chấm bằng cách ghi âm → `/api/speech/transcribe` → `/api/ai/analyze-answer` |
+| POST | `/api/learn/pronunciation/prompt` | User | Sinh 1 câu luyện phát âm theo trình độ (LEARN-06). Chấm bằng `/api/speech/assess-pronunciation` |
+| GET | `/api/learn/recommendations` | User | Đề xuất chủ đề/từ vựng nên học tiếp + lời khuyên cá nhân hóa dựa trên tiến độ thật (LEARN-08) |
+
+> **LEARN-07** (hội thoại theo chủ đề) không có endpoint riêng — chính là `POST /api/sessions` kèm `topicId` (đã có từ SYSTEM-01).
+
 ## Trạng thái các chức năng
 
 - [x] AUTH-01 → AUTH-06: Đăng ký, đăng nhập, đăng xuất, quản lý cá nhân, đổi mật khẩu, phân quyền
@@ -215,7 +233,7 @@ Tất cả response đều có dạng `{ success, message, data, timestamp }`. C
 - [x] SPEECH-01 → SPEECH-05: Đánh giá, chấm điểm, độ trôi chảy, phát hiện lỗi phát âm theo từng từ, hướng dẫn cải thiện (AI-generated)
 - [x] SCORE-01 → SCORE-04: Chấm điểm ngữ pháp, từ vựng, hội thoại (AI), điểm tổng hợp (tính trong code, không nhờ AI cộng)
 - [x] PROGRESS-01 → PROGRESS-06: Lưu lịch sử học tập/hội thoại (tự động, không cần API riêng), theo dõi điểm số theo thời gian, theo dõi từ vựng đã học, thống kê tổng hợp
-- [ ] LEARN-03 → LEARN-08: Ngữ pháp, nghe, nói, phát âm, hội thoại theo chủ đề, đề xuất nội dung
+- [x] LEARN-03 → LEARN-08: Luyện ngữ pháp, nghe, nói, phát âm (sinh đề + chấm theo trình độ), hội thoại theo chủ đề (dùng lại SYSTEM-01), đề xuất nội dung học tập
 - [ ] ROBOT-01 → ROBOT-08
 
 ## Cấu trúc thư mục

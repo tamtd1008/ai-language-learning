@@ -53,6 +53,13 @@ Mọi request bên dưới (trừ login) cần header `Authorization: Bearer <to
 | 39 | PROGRESS | GET | `/api/progress/vocabulary` |
 | 40 | PROGRESS | DELETE | `/api/progress/vocabulary/{vocabularyId}` |
 | 41 | PROGRESS | GET | `/api/progress/summary` |
+| 42 | LEARN-03 | POST | `/api/learn/grammar/exercise` |
+| 43 | LEARN-03 | POST | `/api/learn/grammar/exercise/check` |
+| 44 | LEARN-04 | POST | `/api/learn/listening/exercise` |
+| 45 | LEARN-04 | POST | `/api/learn/listening/exercise/check` |
+| 46 | LEARN-05 | POST | `/api/learn/speaking/prompt` |
+| 47 | LEARN-06 | POST | `/api/learn/pronunciation/prompt` |
+| 48 | LEARN-08 | GET | `/api/learn/recommendations` |
 
 Chi tiết từng bước, kèm body mẫu và kỳ vọng, ở các mục bên dưới.
 
@@ -280,6 +287,30 @@ PROGRESS-01/02 (lưu lịch sử) không có endpoint riêng — tự kiểm ch�
 | 13.7 | DELETE | `/api/progress/vocabulary/{id}` | user | — | 200, sau đó `GET /api/progress/vocabulary` không còn thấy từ này |
 | 13.8 | GET | `/api/progress/summary` | user (tài khoản mới, chưa làm gì) | — | 200, `totalSessions:0`, `averageOverallScore:null` (không phải `0`), `currentLevel:null`, `scoreHistory:[]` |
 | 13.9 | GET | `/api/progress/summary` | user (đã có session/điểm từ mục 4, 12) | — | 200, `totalSessions` và `totalMessagesSent` khớp số liệu thực tế, `averageOverallScore` khớp điểm đã chấm, `scoreHistory` sắp theo thời gian tăng dần |
+
+---
+
+---
+
+## 14. LEARN-03→08 — Luyện tập nâng cao
+
+**LEARN-07** không test riêng ở đây — chính là mục 3 (`POST /api/sessions` kèm `topicId`), đã test rồi.
+
+| # | Method | Endpoint | Token | Body | Kỳ vọng |
+|---|---|---|---|---|---|
+| 14.1 | POST | `/api/learn/grammar/exercise` | user | `{}` hoặc không gửi body | 200, `question` là 1 câu hỏi ngữ pháp tự chứa đủ ngữ cảnh (không cần thêm thông tin gì để làm bài) |
+| 14.2 | POST | `/api/learn/grammar/exercise` | user | `{"level":"C1","topicId":<id topic bất kỳ>}` | 200, câu hỏi khó hơn rõ rệt so với 14.1, có thể liên quan chủ đề |
+| 14.3 | POST | `/api/learn/grammar/exercise/check` | user | `{"question":"<question ở 14.1>","learnerAnswer":"<câu trả lời cố tình sai>"}` | 200, `correct:false`, có `correctAnswer` và `explanation` tiếng Việt |
+| 14.4 | POST | `/api/learn/grammar/exercise/check` | user | body rỗng `{}` | 400 `Question is required` |
+| 14.5 | POST | `/api/learn/listening/exercise` | user | `{}` | 200, có `passage` (2-4 câu) và `question` |
+| 14.6 | POST | `/api/speech/synthesize` | user | `{"text":"<passage ở 14.5>"}` | 200, nghe được đoạn văn vừa sinh (tái dùng TTS-01 có sẵn) |
+| 14.7 | POST | `/api/learn/listening/exercise/check` | user | `{"passage":"<passage ở 14.5>","question":"<question ở 14.5>","learnerAnswer":"..."}` | 200, chấm đúng dựa trên nội dung `passage` |
+| 14.8 | POST | `/api/learn/speaking/prompt` | user | `{"level":"B1"}` | 200, `prompt` là 1 câu hỏi mở, khuyến khích nói 30s-1p |
+| 14.9 | POST | `/api/learn/pronunciation/prompt` | user | `{"level":"A1"}` | 200, `sentence` ngắn gọn, đơn giản, phù hợp người mới bắt đầu |
+| 14.10 | GET | `/api/learn/recommendations` | user (tài khoản mới, chưa làm gì) | — | 200, `message` khuyến khích bắt đầu (không nhắc "tiến bộ"), `recommendedTopics`/`recommendedVocabulary` có tối đa 3 phần tử mỗi loại, đều ở mức A2 (mặc định khi chưa set trình độ) |
+| 14.11 | GET | `/api/learn/recommendations` | user (đã học 1 số từ LEARNED, đã dùng qua 1 số topic) | — | 200, `recommendedTopics`/`recommendedVocabulary` **không** trùng với những gì đã dùng/đã học |
+
+> Toàn bộ endpoint sinh đề/chấm đều gọi AI thật (không có bản mock riêng cho LEARN) — nếu `AI_PROVIDER=mock`, các bước trên sẽ trả về 502 vì mock không trả đúng JSON yêu cầu. Dùng Ollama/Gemini thật để test mục này.
 
 ---
 
