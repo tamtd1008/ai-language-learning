@@ -60,6 +60,11 @@ Mọi request bên dưới (trừ login) cần header `Authorization: Bearer <to
 | 46 | LEARN-05 | POST | `/api/learn/speaking/prompt` |
 | 47 | LEARN-06 | POST | `/api/learn/pronunciation/prompt` |
 | 48 | LEARN-08 | GET | `/api/learn/recommendations` |
+| 49 | ROBOT | POST | `/api/robots/register` |
+| 50 | ROBOT | GET | `/api/robots` |
+| 51 | ROBOT | GET | `/api/robots/{id}` |
+| 52 | ROBOT | PUT | `/api/robots/{id}/status` |
+| 53 | ROBOT | WS | `/ws/robots/{deviceId}` |
 
 Chi tiết từng bước, kèm body mẫu và kỳ vọng, ở các mục bên dưới.
 
@@ -311,6 +316,38 @@ PROGRESS-01/02 (lưu lịch sử) không có endpoint riêng — tự kiểm ch�
 | 14.11 | GET | `/api/learn/recommendations` | user (đã học 1 số từ LEARNED, đã dùng qua 1 số topic) | — | 200, `recommendedTopics`/`recommendedVocabulary` **không** trùng với những gì đã dùng/đã học |
 
 > Toàn bộ endpoint sinh đề/chấm đều gọi AI thật (không có bản mock riêng cho LEARN) — nếu `AI_PROVIDER=mock`, các bước trên sẽ trả về 502 vì mock không trả đúng JSON yêu cầu. Dùng Ollama/Gemini thật để test mục này.
+
+---
+
+---
+
+## 15. ROBOT-01→08 — Kết nối & điều khiển robot
+
+**Phần REST** test bằng Insomnia như bình thường. **Phần WebSocket** (mục 15.5+) cần công cụ hỗ trợ WS — Insomnia bản mới có tab "WebSocket Request" riêng, hoặc dùng `websocat`/script Python nhỏ nếu không có.
+
+| # | Method | Endpoint | Token | Body | Kỳ vọng |
+|---|---|---|---|---|---|
+| 15.1 | POST | `/api/robots/register` | user | `{"deviceId":"robot-pi-001"}` | 201, `status:"IDLE"` |
+| 15.2 | POST | `/api/robots/register` | user | cùng body như 15.1 | 201, **cùng `id`** như 15.1 (idempotent, không tạo bản ghi mới) |
+| 15.3 | POST | `/api/robots/register` | **admin** (hoặc user khác) | cùng `deviceId` như 15.1 | 409 `Device ID is already registered to another account` |
+| 15.4 | GET | `/api/robots` | user | — | 200, thấy robot vừa đăng ký |
+| 15.5 | GET | `/api/robots/{id}` | **user khác** (không phải chủ) | — | 404 `Robot not found` |
+| 15.6 | PUT | `/api/robots/{id}/status` | user | `{"status":"LISTENING","sessionId":<id 1 session của user này>}` | 200, `status:"LISTENING"`, `currentSessionId` đúng |
+| 15.7 | PUT | `/api/robots/{id}/status` | user | `{"status":"DANCING"}` (sai giá trị) | 400 `Status must be one of: OFFLINE, IDLE, LISTENING, SPEAKING, ERROR` |
+| 15.8 | PUT | `/api/robots/{id}/status` | user | `{"status":"IDLE"}` (không gửi `sessionId`) | 200, `currentSessionId: null` — xác nhận bỏ trống sẽ xóa session đang gán |
+
+**WebSocket** (`ws://localhost:8080/ws/robots/robot-pi-001`):
+
+| # | Việc làm | Kỳ vọng |
+|---|---|---|
+| 15.9 | Kết nối **không kèm** header `Authorization` | Handshake bị từ chối — HTTP 401 trước khi upgrade lên WS |
+| 15.10 | Kết nối kèm `Authorization: Bearer <token hợp lệ của user chủ robot>` | Kết nối thành công. Gọi lại `GET /api/robots/{id}` → `status` đã tự chuyển thành `"IDLE"` |
+| 15.11 | Gửi text message `"SPEAKING"` qua kênh WS vừa mở | `GET /api/robots/{id}` → `status:"SPEAKING"` |
+| 15.12 | Gửi text message rác `"abcxyz"` | Kết nối **không bị đóng**, `status` giữ nguyên như trước đó (bị bỏ qua, không lỗi) |
+| 15.13 | Đóng kết nối WS (client tự ngắt) | `GET /api/robots/{id}` → `status:"OFFLINE"` |
+| 15.14 | Kết nối với `deviceId` **chưa từng đăng ký** (`robot-not-exist`) | Handshake bị từ chối — 404, kèm log server `WebSocket handshake rejected: device '...' is not registered` |
+
+> Robot-02→05 (thu âm, gửi lên, nhận phản hồi AI, phát âm thanh) chính là mục 4 và mục 10 đã test rồi — robot chỉ gọi lại đúng những endpoint đó, không có gì mới để test riêng.
 
 ---
 

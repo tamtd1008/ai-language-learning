@@ -59,6 +59,10 @@ Một số quyết định thiết kế đáng chú ý:
 - **PROGRESS-01/02 không cần code riêng**: lịch sử học tập/hội thoại đã tự động được lưu từ lúc các module trước ghi dữ liệu (session, tin nhắn, điểm số) — `ProgressService` chỉ đọc lại và tổng hợp, không có bảng hay logic lưu trữ mới nào cho 2 mục này.
 - **Bài tập LEARN-03/04 không lưu DB**: sinh đề và chấm đều stateless — lúc chấm, client tự gửi lại nguyên văn câu hỏi/đoạn văn kèm câu trả lời, AI chấm trực tiếp thay vì so với đáp án lưu sẵn. Đơn giản hơn, và sinh đề với chấm đề không bao giờ lệch pha nhau.
 - **LEARN-08 không để AI chọn ID**: AI chỉ viết đoạn lời khuyên bằng lời — chủ đề/từ vựng đề xuất cụ thể luôn đến từ query SQL thật (topic/từ chưa từng dùng/học), tránh rủi ro AI bịa ra ID không tồn tại trong DB.
+- **Robot dùng chung JWT với user thường**, không có hệ thống credential riêng — đơn giản hóa, đổi lại robot "là" tài khoản đã đăng ký nó, không phải 1 danh tính độc lập.
+- **Kênh WebSocket (ROBOT-06) dùng giao thức text thuần**, không phải JSON/STOMP — vì phía robot là 1 script Python nhỏ, không phải client REST khác. `RobotHandshakeInterceptor` tự parse JWT thay vì dựa vào `SecurityContextHolder`, vì **chưa kiểm chứng được** Spring Security filter chain có áp dụng y hệt cho handshake WebSocket thô hay không trong môi trường này — cần test riêng khi deploy thật.
+
+
 - **Soft delete**: các danh mục dùng chung (chủ đề, từ vựng) dùng cờ `active` thay vì xóa cứng, tránh phá dữ liệu lịch sử đã tham chiếu tới chúng.
 
 ## Cài đặt & chạy dự án
@@ -215,6 +219,20 @@ Body của các endpoint sinh đề (`GenerateExerciseRequest`) đều nhận `{
 
 > **LEARN-07** (hội thoại theo chủ đề) không có endpoint riêng — chính là `POST /api/sessions` kèm `topicId` (đã có từ SYSTEM-01).
 
+### ROBOT
+
+Robot xác thực bằng **JWT user thường** (không có cơ chế credential riêng) — tài khoản nào đăng ký robot thì tài khoản đó sở hữu và điều khiển robot đó.
+
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/robots/register` | User | Đăng ký (hoặc làm mới) 1 robot bằng `deviceId` — gọi lại nhiều lần với cùng `deviceId` không lỗi (ROBOT-01) |
+| GET | `/api/robots` | User | Danh sách robot của tôi |
+| GET | `/api/robots/{id}` | User | Xem trạng thái 1 robot (ROBOT-07) |
+| PUT | `/api/robots/{id}/status` | User | Đổi trạng thái + session đang relay (ROBOT-08) |
+| WS | `/ws/robots/{deviceId}` | User (JWT qua header `Authorization` lúc handshake) | Kênh realtime — robot gửi trạng thái dạng text thuần (`IDLE`/`LISTENING`/`SPEAKING`...), server có thể đẩy lệnh xuống (ROBOT-06) |
+
+> **ROBOT-02→05** (thu âm, gửi lên server, nhận phản hồi AI, phát âm thanh) không có API riêng — robot chỉ là 1 client gọi lại đúng `POST /api/sessions/{id}/voice-messages` và `GET /api/sessions/{id}/messages/{messageId}/audio` đã có từ STT-04/TTS-04.
+
 ## Trạng thái các chức năng
 
 - [x] AUTH-01 → AUTH-06: Đăng ký, đăng nhập, đăng xuất, quản lý cá nhân, đổi mật khẩu, phân quyền
@@ -234,7 +252,7 @@ Body của các endpoint sinh đề (`GenerateExerciseRequest`) đều nhận `{
 - [x] SCORE-01 → SCORE-04: Chấm điểm ngữ pháp, từ vựng, hội thoại (AI), điểm tổng hợp (tính trong code, không nhờ AI cộng)
 - [x] PROGRESS-01 → PROGRESS-06: Lưu lịch sử học tập/hội thoại (tự động, không cần API riêng), theo dõi điểm số theo thời gian, theo dõi từ vựng đã học, thống kê tổng hợp
 - [x] LEARN-03 → LEARN-08: Luyện ngữ pháp, nghe, nói, phát âm (sinh đề + chấm theo trình độ), hội thoại theo chủ đề (dùng lại SYSTEM-01), đề xuất nội dung học tập
-- [ ] ROBOT-01 → ROBOT-08
+- [x] ROBOT-01 → ROBOT-08: Đăng ký/kết nối, kênh realtime (WebSocket), kiểm tra & điều khiển trạng thái. Thu/gửi/nhận/phát audio (ROBOT-02→05) tái dùng STT-04/TTS-04 có sẵn, không cần API riêng
 
 ## Cấu trúc thư mục
 
@@ -247,14 +265,16 @@ ai-language-learning/
         ├── java/com/example/backend/
         │   ├── ai/              # AIProvider interface + implementation (Ollama/Gemini/Mock)
         │   ├── common/           # ApiResponse
-        │   ├── config/           # SecurityConfig, AdminSeeder, AIProviderConfig
+        │   ├── config/           # SecurityConfig, AdminSeeder, AIProviderConfig, SpeechProviderConfig, WebSocketConfig
         │   ├── controller/       # REST controllers
         │   ├── dto/              # request/response DTO
         │   ├── entity/           # JPA entity
         │   ├── exception/        # Custom exception + GlobalExceptionHandler
         │   ├── repository/       # Spring Data JPA repository
         │   ├── security/         # JWT filter/service
-        │   └── service/          # Business logic
+        │   ├── service/          # Business logic
+        │   ├── speech/           # SpeechToTextProvider/TextToSpeechProvider/PronunciationAssessmentProvider + implementation (Azure/Mock)
+        │   └── ws/               # RobotWebSocketHandler + handshake auth (ROBOT-06)
         └── resources/
             ├── application.properties
             └── db/changelog/     # Liquibase changelog (1 file / bảng)

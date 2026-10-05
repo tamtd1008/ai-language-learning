@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!-- Matches com.example.backend.entity.Robot -->
+    <changeSet id="011-create-robots-table" author="backend">
+        <createTable tableName="robots">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="device_id" type="VARCHAR(100)">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="uk_robots_device_id"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_robots_user"
+                             references="users(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_session_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="fk_robots_current_session"
+                             references="conversation_sessions(id)"/>
+            </column>
+            <column name="last_seen_at" type="TIMESTAMP"/>
+            <column name="registered_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="robots" indexName="idx_robots_user_id">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
