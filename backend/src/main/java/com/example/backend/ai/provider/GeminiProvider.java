@@ -193,11 +193,43 @@ public class GeminiProvider implements AIProvider {
             generationConfig.put("maxOutputTokens", request.getMaxTokens());
         }
 
+        if (request.isJsonMode()) {
+            generationConfig.put("responseMimeType", "application/json");
+            if (request.getJsonSchema() != null) {
+                generationConfig.put(
+                        "responseSchema",
+                        normalizeGeminiSchema(request.getJsonSchema())
+                );
+            }
+        }
+
         if (!generationConfig.isEmpty()) {
             body.put("generationConfig", generationConfig);
         }
 
         return body;
+    }
+
+    private Object normalizeGeminiSchema(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> normalized = new HashMap<>();
+            map.forEach((key, item) -> {
+                String name = key.toString();
+                if ("minItems".equals(name) || "maxItems".equals(name)) {
+                    return;
+                }
+                Object normalizedValue = normalizeGeminiSchema(item);
+                if ("type".equals(name) && item instanceof String type) {
+                    normalizedValue = type.toUpperCase(java.util.Locale.ROOT);
+                }
+                normalized.put(name, normalizedValue);
+            });
+            return normalized;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(this::normalizeGeminiSchema).toList();
+        }
+        return value;
     }
 
     // ---- Gemini generateContent response shape (only fields we use) ----

@@ -2,7 +2,6 @@ package com.example.backend.service;
 
 import com.example.backend.ai.AIProviderException;
 import com.example.backend.ai.AiJsonHelper;
-import com.example.backend.ai.AiJsonHelper.AiJsonResult;
 import com.example.backend.dto.response.ScoreResponse;
 import com.example.backend.entity.ConversationMessage;
 import com.example.backend.entity.ConversationSession;
@@ -99,28 +98,20 @@ public class ScoreService {
                 ) + message.getContent())
                 .collect(Collectors.joining("\n"));
 
-        AiJsonResult<ScoreAiResult> result = aiJsonHelper.requestJson(
+        ScoreAiResult parsed = aiJsonHelper.requestJson(
                 SYSTEM_PROMPT,
                 transcript,
                 0.2, // grading should be consistent, not creative
                 ScoreAiResult.class
         );
 
-        if (!result.isSuccess()
-                || result.getValue().getGrammarScore() == null
-                || result.getValue().getVocabularyScore() == null
-                || result.getValue().getConversationScore() == null) {
-
-            // Unlike the other AI-0x services, there's no sensible
-            // "fall back to raw text" here - a score has to be a
-            // number. Fail clearly instead of persisting a guess.
+        if (!validScore(parsed.getGrammarScore())
+                || !validScore(parsed.getVocabularyScore())
+                || !validScore(parsed.getConversationScore())) {
             throw new AIProviderException(
-                    "Could not compute a score - the AI did not return " +
-                            "valid grading data"
+                    "Could not compute a score. AI scores must be between 0 and 100."
             );
         }
-
-        ScoreAiResult parsed = result.getValue();
 
         double overall = (parsed.getGrammarScore()
                 + parsed.getVocabularyScore()
@@ -157,6 +148,10 @@ public class ScoreService {
 
     private double round1(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    private boolean validScore(Double score) {
+        return score != null && Double.isFinite(score) && score >= 0 && score <= 100;
     }
 
     private ScoreResponse toResponse(Score score) {

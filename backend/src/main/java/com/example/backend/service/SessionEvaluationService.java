@@ -1,7 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.ai.AiJsonHelper;
-import com.example.backend.ai.AiJsonHelper.AiJsonResult;
+import com.example.backend.ai.AIProviderException;
 import com.example.backend.dto.response.SessionEvaluationResponse;
 import com.example.backend.entity.ConversationMessage;
 import com.example.backend.entity.ConversationSession;
@@ -96,26 +96,21 @@ public class SessionEvaluationService {
                 ) + message.getContent())
                 .collect(Collectors.joining("\n"));
 
-        AiJsonResult<SessionEvaluationAiResult> result = aiJsonHelper
-                .requestJson(
+        SessionEvaluationAiResult parsed = aiJsonHelper.requestJson(
                         SYSTEM_PROMPT,
                         transcript,
                         0.3,
                         SessionEvaluationAiResult.class
                 );
 
-        if (!result.isSuccess()) {
-
-            return SessionEvaluationResponse.builder()
-                    .sessionId(session.getId())
-                    .summary(result.getRaw())
-                    .strengths("")
-                    .areasToImprove("")
-                    .estimatedLevel(null)
-                    .build();
+        if (parsed.getSummary().isBlank()
+                || parsed.getStrengths().isBlank()
+                || parsed.getAreasToImprove().isBlank()
+                || parsed.getEstimatedLevel().isBlank()) {
+            throw new AIProviderException(
+                    "AI returned incomplete session evaluation. Please retry."
+            );
         }
-
-        SessionEvaluationAiResult parsed = result.getValue();
 
         return SessionEvaluationResponse.builder()
                 .sessionId(session.getId())

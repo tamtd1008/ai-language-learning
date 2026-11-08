@@ -1,7 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.ai.AiJsonHelper;
-import com.example.backend.ai.AiJsonHelper.AiJsonResult;
+import com.example.backend.ai.AIProviderException;
 import com.example.backend.dto.request.AnalyzeAnswerRequest;
 import com.example.backend.dto.response.AnalyzeAnswerResponse;
 
@@ -49,25 +49,20 @@ public class AnswerAnalysisService {
         String userMessage = "Question: " + request.getQuestion() +
                 "\nLearner's answer: " + request.getAnswer();
 
-        AiJsonResult<AnalyzeAnswerAiResult> result = aiJsonHelper.requestJson(
+        AnalyzeAnswerAiResult parsed = aiJsonHelper.requestJson(
                 SYSTEM_PROMPT,
                 userMessage,
                 0.3,
                 AnalyzeAnswerAiResult.class
         );
 
-        if (!result.isSuccess()) {
-
-            return AnalyzeAnswerResponse.builder()
-                    .question(request.getQuestion())
-                    .answer(request.getAnswer())
-                    .onTopic(true)
-                    .feedback(result.getRaw())
-                    .suggestedImprovement(request.getAnswer())
-                    .build();
+        if (parsed.getOnTopic() == null
+                || parsed.getFeedback().isBlank()
+                || parsed.getSuggestedImprovement().isBlank()) {
+            throw new AIProviderException(
+                    "AI returned incomplete answer analysis. Please retry."
+            );
         }
-
-        AnalyzeAnswerAiResult parsed = result.getValue();
 
         return AnalyzeAnswerResponse.builder()
                 .question(request.getQuestion())

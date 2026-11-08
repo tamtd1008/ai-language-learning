@@ -11,6 +11,8 @@ public interface ConversationMessageRepository extends JpaRepository<Conversatio
 
     List<ConversationMessage> findBySessionIdOrderByCreatedAtAsc(Long sessionId);
 
+    List<ConversationMessage> findTop8BySessionIdOrderByCreatedAtDesc(Long sessionId);
+
     // PROGRESS-06: total messages the learner has actually sent (not
     // counting AI replies), across every one of their sessions.
     long countBySession_User_IdAndRole(Long userId, MessageRole role);

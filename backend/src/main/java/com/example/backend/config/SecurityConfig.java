@@ -12,6 +12,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.http.HttpStatus;
 
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -55,6 +57,15 @@ public class SecurityConfig {
                         // Require authentication for all other APIs.
                         .anyRequest()
                         .authenticated()
+                )
+
+                // Stateless APIs have no login page to redirect to. Return
+                // 401 for missing/invalid authentication; keep 403 for an
+                // authenticated caller who lacks permission.
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(
+                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+                        )
                 )
 
                 // Validate JWT before the standard username/password filter.

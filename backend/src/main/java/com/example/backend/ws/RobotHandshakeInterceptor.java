@@ -77,13 +77,19 @@ public class RobotHandshakeInterceptor implements HandshakeInterceptor {
             return false;
         }
 
-        if (!robot.getUser().getUsername().equals(username)) {
+        // Check ownership in SQL rather than traversing Robot.user here.
+        // A WebSocket handshake is outside a service transaction, so the
+        // lazy user association may be detached and is not a reliable place
+        // to perform this authorization check.
+        if (!robotRepository.existsByDeviceIdAndUserUsername(deviceId, username)) {
 
+            log.warn("WebSocket handshake rejected: caller does not own device '{}'", deviceId);
             response.setStatusCode(HttpStatus.FORBIDDEN);
             return false;
         }
 
         attributes.put("deviceId", deviceId);
+        log.debug("WebSocket handshake accepted for device '{}'", deviceId);
 
         return true;
     }

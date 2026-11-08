@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -31,4 +32,9 @@ public class AiChatRequest {
     private Double temperature;
 
     private Integer maxTokens;
+
+    @Builder.Default
+    private boolean jsonMode = false;
+
+    private Map<String, Object> jsonSchema;
 }

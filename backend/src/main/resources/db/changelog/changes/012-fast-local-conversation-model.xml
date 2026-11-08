@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="012-fast-local-conversation-model" author="backend">
+        <!-- Keep prior configs intact for sessions already using them. -->
+        <sql><![CDATA[
+            INSERT INTO ai_configs
+                (name, provider, model, system_prompt, temperature, max_tokens, active, created_at, updated_at)
+            SELECT
+                'fast-conversation-qwen3-1.7b',
+                'ollama',
+                'qwen3:1.7b',
+                'You are Lingua AI, a friendly, encouraging language tutor. If asked your name, say I am Lingua AI. Keep replies to 1-2 short sentences and reply directly in the language the learner is practicing.',
+                0.4,
+                96,
+                false,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (
+                SELECT 1 FROM ai_configs WHERE name = 'fast-conversation-qwen3-1.7b'
+            );
+        ]]></sql>
+
+        <!-- Prefer the faster config only when the seeded default was active. -->
+        <sql><![CDATA[
+            UPDATE ai_configs
+            SET active = false, updated_at = CURRENT_TIMESTAMP
+            WHERE name = 'default-conversation' AND active = true;
+
+            UPDATE ai_configs
+            SET active = true, updated_at = CURRENT_TIMESTAMP
+            WHERE name = 'fast-conversation-qwen3-1.7b'
+              AND NOT EXISTS (SELECT 1 FROM ai_configs WHERE active = true);
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>

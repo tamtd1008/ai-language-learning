@@ -1,6 +1,19 @@
-# Maven
+# Java / Maven
 backend/target/
 !.mvn/wrapper/maven-wrapper.jar
+
+# Node.js / frontend build output
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # IntelliJ IDEA
 .idea/

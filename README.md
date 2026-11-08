@@ -1,6 +1,6 @@
-# AI Language Learning – Backend
+# AI Language Learning
 
-Hệ thống học ngoại ngữ ứng dụng AI, tương tác chủ yếu qua giọng nói, được thiết kế để sau này kết hợp với frontend và robot giao tiếp vật lý. Repo này là **backend API**, xây dựng độc lập trước, frontend và robot sẽ tích hợp vào sau qua REST API.
+Hệ thống học ngoại ngữ ứng dụng AI, tương tác bằng văn bản và giọng nói, gồm backend API và frontend web. Robot giao tiếp vật lý có thể kết nối qua REST API và WebSocket.
 
 ## Mục lục
 
@@ -33,8 +33,9 @@ Xem chi tiết trạng thái từng chức năng ở [phần bên dưới](#tr�
 ## Công nghệ sử dụng
 
 - **Backend**: Java 21, Spring Boot 4, Spring Security (JWT), Spring Data JPA
+- **Frontend**: React, TypeScript, Vite
 - **Database**: PostgreSQL 16, quản lý schema bằng Liquibase
-- **AI**: kiến trúc provider trung lập (`AIProvider`) — mặc định chạy **Ollama + Qwen 3 4B** (local, không cần API key), có sẵn adapter **Gemini** (cloud) và **Mock** (test)
+- **AI**: kiến trúc provider trung lập (`AIProvider`) — Ollama local dùng **Qwen 3 1.7B cho hội thoại** và **4B cho tác vụ AI có cấu trúc**, có sẵn adapter Gemini (cloud) và Mock (test)
 - **Hạ tầng**: Docker Compose (PostgreSQL + pgAdmin tùy chọn)
 - **Khác**: Lombok, BCrypt, jjwt, Bean Validation (`@Valid`)
 
@@ -52,15 +53,15 @@ Một số quyết định thiết kế đáng chú ý:
 - **`GlobalExceptionHandler`**: xử lý lỗi tập trung — exception nghiệp vụ (404/409/400/401), lỗi validate, lỗi xác thực, lỗi từ AI provider (502) đều trả về đúng mã HTTP và cấu trúc thống nhất, không có `RuntimeException` trả lỗi 500 mặc định.
 - **Liquibase thay `ddl-auto=update`**: schema database được quản lý bằng changelog (`db/changelog/`), có lịch sử rõ ràng, không để Hibernate tự sinh bảng.
 - **`AIProvider` interface**: các service AI không phụ thuộc trực tiếp vào Ollama/Gemini cụ thể — đổi provider chỉ cần đổi biến môi trường `AI_PROVIDER`, không sửa code.
-- **Ngữ cảnh hội thoại (AI-03) không nằm ở model**: mỗi lần gọi AI, hệ thống tự load lại toàn bộ lịch sử tin nhắn của session từ DB rồi gửi kèm — bản thân `AIProvider`/Ollama hoàn toàn stateless giữa các lần gọi.
-- **`SpeechToTextProvider`/`TextToSpeechProvider` interface**: cùng pattern với `AIProvider` — đổi provider (Azure/Mock) chỉ cần đổi `SPEECH_PROVIDER`, không sửa code. Kết quả nhận diện giọng nói (STT-03) không lưu vào bảng riêng — văn bản sau khi transcribe được lưu thẳng vào `conversation_messages` giống tin nhắn gõ tay, không phân biệt nguồn gốc.
+- **Ngữ cảnh hội thoại (AI-03) không nằm ở model**: mỗi lần gọi AI, hệ thống gửi tối đa 8 tin nhắn gần nhất; nội dung suy luận bị chặn không được phát lại trong ngữ cảnh hoặc trả về lịch sử.
+- **`SpeechToTextProvider`/`TextToSpeechProvider` interface**: STT, TTS và chấm phát âm có thể cấu hình provider riêng. Hỗ trợ Azure/Mock; STT local qua whisper.cpp và TTS local qua Piper. Kết quả nhận diện giọng nói (STT-03) không lưu vào bảng riêng — văn bản sau khi transcribe được lưu thẳng vào `conversation_messages` giống tin nhắn gõ tay, không phân biệt nguồn gốc.
 - **Pronunciation Assessment (SPEECH-01→04) dùng chung endpoint với STT**: chỉ thêm header `Pronunciation-Assessment` (JSON base64) vào cùng request nhận diện giọng nói của Azure, không phải API riêng biệt. Lời khuyên cải thiện (SPEECH-05) tái dùng `AIProvider` để biến điểm số thô thành phản hồi tự nhiên, không phải chuỗi mẫu dựng sẵn.
 - **Điểm tổng hợp (SCORE-04) không để AI tự cộng**: AI chỉ chấm 3 điểm thành phần (ngữ pháp/từ vựng/hội thoại), `overallScore` là trung bình cộng do code tính — tránh trường hợp AI cộng/làm tròn sai, đảm bảo luôn nhất quán với 3 điểm kia.
 - **PROGRESS-01/02 không cần code riêng**: lịch sử học tập/hội thoại đã tự động được lưu từ lúc các module trước ghi dữ liệu (session, tin nhắn, điểm số) — `ProgressService` chỉ đọc lại và tổng hợp, không có bảng hay logic lưu trữ mới nào cho 2 mục này.
 - **Bài tập LEARN-03/04 không lưu DB**: sinh đề và chấm đều stateless — lúc chấm, client tự gửi lại nguyên văn câu hỏi/đoạn văn kèm câu trả lời, AI chấm trực tiếp thay vì so với đáp án lưu sẵn. Đơn giản hơn, và sinh đề với chấm đề không bao giờ lệch pha nhau.
 - **LEARN-08 không để AI chọn ID**: AI chỉ viết đoạn lời khuyên bằng lời — chủ đề/từ vựng đề xuất cụ thể luôn đến từ query SQL thật (topic/từ chưa từng dùng/học), tránh rủi ro AI bịa ra ID không tồn tại trong DB.
 - **Robot dùng chung JWT với user thường**, không có hệ thống credential riêng — đơn giản hóa, đổi lại robot "là" tài khoản đã đăng ký nó, không phải 1 danh tính độc lập.
-- **Kênh WebSocket (ROBOT-06) dùng giao thức text thuần**, không phải JSON/STOMP — vì phía robot là 1 script Python nhỏ, không phải client REST khác. `RobotHandshakeInterceptor` tự parse JWT thay vì dựa vào `SecurityContextHolder`, vì **chưa kiểm chứng được** Spring Security filter chain có áp dụng y hệt cho handshake WebSocket thô hay không trong môi trường này — cần test riêng khi deploy thật.
+- **Kênh WebSocket (ROBOT-06) dùng giao thức text thuần**, không phải JSON/STOMP — vì phía robot là 1 script Python nhỏ, không phải client REST khác. Handshake tự xác thực JWT và truy vấn quyền sở hữu robot trực tiếp trong DB; kiểm thử hồi quy bao phủ thiếu/sai token, thiết bị không tồn tại, đúng chủ sở hữu và sai chủ sở hữu.
 
 
 - **Soft delete**: các danh mục dùng chung (chủ đề, từ vựng) dùng cờ `active` thay vì xóa cứng, tránh phá dữ liệu lịch sử đã tham chiếu tới chúng.
@@ -72,7 +73,8 @@ Một số quyết định thiết kế đáng chú ý:
 - Java 21
 - Docker (chạy PostgreSQL)
 - [Ollama](https://ollama.com) (nếu muốn dùng tính năng AI với provider mặc định)
-- Tài khoản Azure AI Speech (chỉ cần nếu muốn dùng thật STT/TTS — mặc định `SPEECH_PROVIDER=mock` nên không bắt buộc để chạy app)
+- Docker (cần thêm nếu muốn dùng STT/TTS local qua whisper.cpp/Piper)
+- Tài khoản Azure AI Speech (chỉ cần nếu muốn dùng STT/TTS/chấm phát âm Azure — mặc định `SPEECH_PROVIDER=mock`)
 - Maven (dùng kèm `mvnw` có sẵn trong repo, không cần cài riêng)
 
 ### Các bước
@@ -93,12 +95,29 @@ Một số quyết định thiết kế đáng chú ý:
    docker compose up -d
    ```
 
+   Để bật nhận dạng và phát giọng nói hoàn toàn cục bộ, thêm vào `.env`:
+
+   ```dotenv
+   SPEECH_STT_PROVIDER=whisper
+   SPEECH_TTS_PROVIDER=piper
+   SPEECH_ASSESSMENT_PROVIDER=mock
+   ```
+
+   Sau đó khởi động hai dịch vụ speech (lần đầu sẽ tải model Piper và Whisper):
+
+   ```powershell
+   docker compose --profile local-speech up -d piper whisper
+   ```
+
+   Piper cung cấp TTS tại `http://localhost:5001`; whisper.cpp cung cấp STT tại `http://localhost:5002`. Model được giữ trong Docker volumes qua các lần chạy. Giọng Piper mặc định là English. Đổi `PIPER_VOICE` để dùng model giọng khác. Chấm phát âm vẫn ở chế độ `mock` (điểm minh họa), vì whisper.cpp không cung cấp chấm lỗi phát âm như Azure.
+
    Xem database qua giao diện web (tùy chọn): `docker compose --profile tools up -d` rồi mở pgAdmin tại `http://localhost:5050`.
 
 3. **(Tùy chọn) Chuẩn bị Ollama nếu muốn dùng AI:**
 
    ```bash
    ollama serve
+   ollama pull qwen3:1.7b
    ollama pull qwen3:4b
    ```
 
@@ -114,6 +133,16 @@ Một số quyết định thiết kế đáng chú ý:
    Nhớ nạp các biến trong `.env` vào môi trường chạy (IntelliJ Run Configuration → Environment variables, hoặc export thủ công trước khi chạy `mvnw`).
 
    Ứng dụng chạy tại `http://localhost:8080`. Khi khởi động lần đầu, Liquibase tự tạo schema và một tài khoản `ADMIN` mặc định (`ADMIN_USERNAME`/`ADMIN_PASSWORD` trong `.env`) được tự động seed sẵn — đăng nhập ngay bằng `POST /api/auth/login`, không cần đăng ký thủ công.
+
+5. **Chạy frontend trong cửa sổ terminal khác:**
+
+   ```bash
+   cd frontend
+   pnpm install
+   pnpm dev
+   ```
+
+   Mở địa chỉ Vite hiển thị trong terminal (mặc định `http://localhost:5173`). Frontend proxy `/api` và `/ws` đến backend `http://localhost:8080`. Nếu backend chạy trên máy khác, tạo `frontend/.env.local` theo `frontend/.env.example`, đặt `VITE_BACKEND_URL` thành địa chỉ máy backend và khởi động lại Vite. Cần để backend chạy trước khi đăng nhập. Tính năng AI cần provider AI hoạt động; hội thoại giọng nói yêu cầu quyền truy cập microphone.
 
 ## Danh sách API
 
@@ -245,14 +274,16 @@ Robot xác thực bằng **JWT user thường** (không có cơ chế credential
 - [x] AI-06: Gợi ý cách diễn đạt tự nhiên/đa dạng hơn
 - [x] AI-07: Phân tích câu trả lời (độ liên quan, ngữ pháp, từ vựng, đề xuất cải thiện)
 - [x] AI-08: Đánh giá kết quả học tập của 1 phiên hội thoại đã kết thúc (định tính — chưa có điểm số, xem SCORE)
-- [x] Hạ tầng Speech: `SpeechToTextProvider`/`TextToSpeechProvider` interface, Azure AI Speech (mặc định khi có key), Mock (test)
-- [x] STT-01 → STT-04: Thu âm (client-side), chuyển giọng nói thành văn bản, lưu kết quả (tái dùng bảng tin nhắn), xử lý hội thoại bằng giọng nói
-- [x] TTS-01 → TTS-04: Chuyển văn bản thành giọng nói, chọn giọng đọc, chọn ngôn ngữ, phát âm thanh phản hồi AI
-- [x] SPEECH-01 → SPEECH-05: Đánh giá, chấm điểm, độ trôi chảy, phát hiện lỗi phát âm theo từng từ, hướng dẫn cải thiện (AI-generated)
+- [~] Hạ tầng Speech: adapter Azure/Mock và local Piper/whisper.cpp đã có; cần bật Docker profile `local-speech` để dùng STT/TTS local. Chấm phát âm cần Azure để có điểm thật.
+- [~] STT-01 → STT-04: luồng API/thu âm đã nối; Mock chỉ trả văn bản placeholder, chưa nhận dạng lời nói thật.
+- [~] TTS-01 → TTS-04: API và adapter Azure đã có; Mock trả bytes placeholder, không phải MP3 phát được.
+- [~] SPEECH-01 → SPEECH-05: adapter chấm phát âm Azure đã có; kết quả Mock không đại diện chất lượng chấm thực tế.
 - [x] SCORE-01 → SCORE-04: Chấm điểm ngữ pháp, từ vựng, hội thoại (AI), điểm tổng hợp (tính trong code, không nhờ AI cộng)
 - [x] PROGRESS-01 → PROGRESS-06: Lưu lịch sử học tập/hội thoại (tự động, không cần API riêng), theo dõi điểm số theo thời gian, theo dõi từ vựng đã học, thống kê tổng hợp
 - [x] LEARN-03 → LEARN-08: Luyện ngữ pháp, nghe, nói, phát âm (sinh đề + chấm theo trình độ), hội thoại theo chủ đề (dùng lại SYSTEM-01), đề xuất nội dung học tập
-- [x] ROBOT-01 → ROBOT-08: Đăng ký/kết nối, kênh realtime (WebSocket), kiểm tra & điều khiển trạng thái. Thu/gửi/nhận/phát audio (ROBOT-02→05) tái dùng STT-04/TTS-04 có sẵn, không cần API riêng
+- [~] ROBOT-01 → ROBOT-08: REST và WebSocket đã triển khai; handshake có kiểm thử hồi quy. Cần kiểm tra thêm với script/phần cứng robot thật; các luồng audio phụ thuộc Speech provider thật.
+
+> Các dấu `[x]` phản ánh chức năng đã có triển khai; những mục `[~]` còn phụ thuộc dịch vụ ngoài hoặc phần cứng để xác nhận chất lượng end-to-end. Backend hiện chỉ có kiểm thử tự động tập trung cho một số luồng WebSocket và kiểm tra khởi động ứng dụng; xem [TESTING-GUIDE.md](TESTING-GUIDE.md) để chạy kiểm thử API thủ công.
 
 ## Cấu trúc thư mục
 
@@ -260,6 +291,7 @@ Robot xác thực bằng **JWT user thường** (không có cơ chế credential
 ai-language-learning/
 ├── docker-compose.yml          # PostgreSQL + pgAdmin (tùy chọn)
 ├── .env.example                 # Mẫu biến môi trường
+├── frontend/                    # React + TypeScript + Vite
 └── backend/
     └── src/main/
         ├── java/com/example/backend/
@@ -273,7 +305,7 @@ ai-language-learning/
         │   ├── repository/       # Spring Data JPA repository
         │   ├── security/         # JWT filter/service
         │   ├── service/          # Business logic
-        │   ├── speech/           # SpeechToTextProvider/TextToSpeechProvider/PronunciationAssessmentProvider + implementation (Azure/Mock)
+        │   ├── speech/           # Speech providers (Azure, Mock, Piper, whisper.cpp)
         │   └── ws/               # RobotWebSocketHandler + handshake auth (ROBOT-06)
         └── resources/
             ├── application.properties

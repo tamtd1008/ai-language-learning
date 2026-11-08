@@ -227,7 +227,9 @@ public class SessionController {
         );
 
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("audio/mpeg"))
+                .contentType(MediaType.valueOf(
+                        conversationService.getMessageAudioContentType()
+                ))
                 .body(audio);
     }
 

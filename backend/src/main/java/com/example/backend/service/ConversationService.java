@@ -1,6 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.ai.AIProvider;
+import com.example.backend.ai.AiResponseGuard;
 import com.example.backend.ai.AiChatMessage;
 import com.example.backend.ai.AiChatRequest;
 import com.example.backend.ai.AiChatResponse;
@@ -25,22 +26,27 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * AI-01 (chat), AI-02 (answering questions - a natural side effect of
  * chat, not a separate code path) and AI-03 (context): every call sends
- * the session's full message history to the AIProvider, so the model
- * always sees the whole conversation, not just the latest message.
+ * a bounded recent message history to the AIProvider, keeping the
+ * conversation coherent without growing the prompt indefinitely.
  */
 @Service
 @RequiredArgsConstructor
 public class ConversationService {
 
     private static final String DEFAULT_SYSTEM_PROMPT =
-            "You are a friendly, encouraging foreign-language conversation " +
-                    "tutor. Keep replies concise (2-4 sentences), gently " +
+            "You are Lingua AI, a friendly, encouraging language tutor. " +
+                    "If asked your name, say 'I'm Lingua AI.' " +
+                    "Keep replies concise (1-2 short sentences), gently " +
                     "point out any grammar mistakes the learner makes, and " +
                     "reply in the language the learner is practicing.";
+
+    private static final int MAX_CONVERSATION_OUTPUT_TOKENS = 96;
 
     private final ConversationSessionRepository sessionRepository;
 
@@ -76,12 +82,22 @@ public class ConversationService {
 
         saveMessage(session, MessageRole.USER, request.getContent());
 
-        // AI-03: reload the full history (including the message just
+        // AI-03: reload the latest messages (including the message just
         // saved above) so every call is stateless from the AIProvider's
-        // point of view - all context comes from what we send it, not
-        // from anything remembered between requests.
+        // point of view while keeping prompt size bounded.
         List<ConversationMessage> history = messageRepository
-                .findBySessionIdOrderByCreatedAtAsc(session.getId());
+                .findTop8BySessionIdOrderByCreatedAtDesc(session.getId())
+                .stream()
+                .filter(message -> message.getRole() != MessageRole.ASSISTANT
+                        || !AiResponseGuard.containsInternalReasoning(message.getContent()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        Collections.reverse(history);
+        Integer configuredMaxTokens = session.getAiConfig() != null
+                ? session.getAiConfig().getMaxTokens()
+                : null;
+        int conversationMaxTokens = configuredMaxTokens == null
+                ? MAX_CONVERSATION_OUTPUT_TOKENS
+                : Math.min(configuredMaxTokens, MAX_CONVERSATION_OUTPUT_TOKENS);
 
         AiChatResponse aiResponse = aiProvider.chat(
                 AiChatRequest.builder()
@@ -99,18 +115,17 @@ public class ConversationService {
                                         ? session.getAiConfig().getTemperature()
                                         : null
                         )
-                        .maxTokens(
-                                session.getAiConfig() != null
-                                        ? session.getAiConfig().getMaxTokens()
-                                        : null
-                        )
+                        .maxTokens(conversationMaxTokens)
                         .build()
         );
 
+        String learnerVisibleReply = AiResponseGuard.learnerVisibleContent(
+                aiResponse.getContent()
+        );
         ConversationMessage assistantMessage = saveMessage(
                 session,
                 MessageRole.ASSISTANT,
-                aiResponse.getContent()
+                learnerVisibleReply
         );
 
         return toResponse(assistantMessage);
@@ -162,6 +177,10 @@ public class ConversationService {
         );
     }
 
+    public String getMessageAudioContentType() {
+        return textToSpeechProvider.getAudioContentType();
+    }
+
     // AI-01 context: combines the session's AiConfig prompt (if any),
     // the session's topic (if any), and the learner's current level
     // (AI-04) - so the same conversation reads very differently for an
@@ -179,6 +198,16 @@ public class ConversationService {
                         ? configPrompt
                         : DEFAULT_SYSTEM_PROMPT
         );
+
+        // Apply a final tutor-output rule even when an admin-configured
+        // prompt is selected. Some reasoning models may otherwise put
+        // internal planning in the learner-visible message.
+        prompt.append(" Reply directly to the learner with only the final answer. " +
+                "Never reveal or narrate private reasoning, analysis, or planning, " +
+                "and do not describe the learner in the third person. For simple " +
+                "greetings or direct questions, use 1-2 short sentences, at most " +
+                "35 words, and ask no follow-up unless it helps the practice. " +
+                "Keep the answer at the learner's level.");
 
         Topic topic = session.getTopic();
 
@@ -259,10 +288,16 @@ public class ConversationService {
 
     private MessageResponse toResponse(ConversationMessage message) {
 
+        String content = message.getContent();
+        if (message.getRole() == MessageRole.ASSISTANT
+                && AiResponseGuard.containsInternalReasoning(content)) {
+            content = AiResponseGuard.SAFE_FALLBACK;
+        }
+
         return MessageResponse.builder()
                 .id(message.getId())
                 .role(message.getRole().name())
-                .content(message.getContent())
+                .content(content)
                 .createdAt(message.getCreatedAt())
                 .build();
     }

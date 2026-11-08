@@ -1,7 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.ai.AiJsonHelper;
-import com.example.backend.ai.AiJsonHelper.AiJsonResult;
+import com.example.backend.ai.AIProviderException;
 import com.example.backend.dto.request.GrammarCheckRequest;
 import com.example.backend.dto.response.GrammarCheckResponse;
 
@@ -40,27 +40,20 @@ public class GrammarCheckService {
 
     public GrammarCheckResponse check(GrammarCheckRequest request) {
 
-        AiJsonResult<GrammarCheckAiResult> result = aiJsonHelper.requestJson(
+        GrammarCheckAiResult parsed = aiJsonHelper.requestJson(
                 SYSTEM_PROMPT,
                 request.getText(),
                 0.2, // low temperature - extraction task, not creative writing
                 GrammarCheckAiResult.class
         );
 
-        if (!result.isSuccess()) {
-
-            // Small local models occasionally ignore the "JSON only"
-            // instruction - fall back to showing the raw response as
-            // the explanation rather than failing the request.
-            return GrammarCheckResponse.builder()
-                    .original(request.getText())
-                    .corrected(request.getText())
-                    .hasErrors(true)
-                    .explanation(result.getRaw())
-                    .build();
+        if (parsed.getCorrected().isBlank()
+                || (Boolean.TRUE.equals(parsed.getHasErrors())
+                && parsed.getExplanation().isBlank())) {
+            throw new AIProviderException(
+                    "AI returned incomplete grammar feedback. Please retry."
+            );
         }
-
-        GrammarCheckAiResult parsed = result.getValue();
 
         return GrammarCheckResponse.builder()
                 .original(request.getText())

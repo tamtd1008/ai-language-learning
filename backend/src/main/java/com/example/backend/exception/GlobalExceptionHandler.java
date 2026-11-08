@@ -12,8 +12,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,6 +64,46 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // Missing required multipart fields are client errors, not server
+    // failures. Keep their messages consistent with supplied-but-empty fields.
+    @ExceptionHandler({
+            MissingServletRequestPartException.class,
+            MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleMissingRequestInput(
+            Exception ex
+    ) {
+
+        String name = ex instanceof MissingServletRequestPartException part
+                ? part.getRequestPartName()
+                : ((MissingServletRequestParameterException) ex)
+                        .getParameterName();
+
+        String message = switch (name) {
+            case "audio" -> "Audio file is required";
+            case "referenceText" -> "Reference text is required";
+            default -> "Required request field is missing: " + name;
+        };
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(message));
+    }
+
+    // A malformed or empty multipart envelope can fail before Spring has
+    // resolved individual request parts. Report it as invalid client input.
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMultipartException(
+            MultipartException ex
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(
+                        "Invalid or incomplete multipart form data; include the required audio file"
+                ));
+    }
+
     // Handles disabled accounts on login (thrown before bad credentials
     // check, since Spring Security checks account status first).
     @ExceptionHandler(DisabledException.class)
@@ -105,7 +148,7 @@ public class GlobalExceptionHandler {
             AIProviderException ex
     ) {
 
-        log.error("AI provider error", ex);
+        log.error("AI provider error: {}", ex.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_GATEWAY)

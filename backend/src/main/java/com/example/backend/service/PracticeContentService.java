@@ -2,7 +2,6 @@ package com.example.backend.service;
 
 import com.example.backend.ai.AIProviderException;
 import com.example.backend.ai.AiJsonHelper;
-import com.example.backend.ai.AiJsonHelper.AiJsonResult;
 import com.example.backend.dto.request.CheckAnswerRequest;
 import com.example.backend.dto.request.CheckListeningAnswerRequest;
 import com.example.backend.dto.request.GenerateExerciseRequest;
@@ -286,22 +285,19 @@ public class PracticeContentService {
             String failureMessage
     ) {
 
-        AiJsonResult<T> result = aiJsonHelper.requestJson(
-                systemPrompt,
-                userMessage,
-                0.7,
-                resultType
-        );
-
-        if (!result.isSuccess()) {
-
-            // Exercise content and grading both need reliable structure -
-            // unlike the conversational AI-0x features, there's no
-            // sensible partial fallback, so fail clearly (502) instead.
-            throw new AIProviderException(failureMessage);
+        T result;
+        try {
+            result = aiJsonHelper.requestJson(
+                    systemPrompt,
+                    userMessage,
+                    0.7,
+                    resultType
+            );
+        } catch (AIProviderException e) {
+            throw new AIProviderException(failureMessage, e);
         }
 
-        return result.getValue();
+        return result;
     }
 
     private CheckAnswerResponse toCheckResponse(CheckAiResult result) {

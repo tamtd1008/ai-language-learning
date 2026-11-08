@@ -11,6 +11,8 @@ public interface RobotRepository extends JpaRepository<Robot, Long> {
 
     Optional<Robot> findByDeviceId(String deviceId);
 
+    boolean existsByDeviceIdAndUserUsername(String deviceId, String username);
+
     // Used to enforce ownership in one query, same pattern as
     // ConversationSessionRepository.findByIdAndUserUsername.
     Optional<Robot> findByIdAndUserUsername(Long id, String username);

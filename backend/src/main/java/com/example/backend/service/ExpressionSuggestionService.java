@@ -1,7 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.ai.AiJsonHelper;
-import com.example.backend.ai.AiJsonHelper.AiJsonResult;
+import com.example.backend.ai.AIProviderException;
 import com.example.backend.dto.request.SuggestExpressionRequest;
 import com.example.backend.dto.response.ExpressionSuggestion;
 import com.example.backend.dto.response.SuggestExpressionResponse;
@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 import org.springframework.stereotype.Service;
+
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -46,32 +48,25 @@ public class ExpressionSuggestionService {
 
     public SuggestExpressionResponse suggest(SuggestExpressionRequest request) {
 
-        AiJsonResult<SuggestExpressionAiResult> result = aiJsonHelper
-                .requestJson(
+        SuggestExpressionAiResult result = aiJsonHelper.requestJson(
                         SYSTEM_PROMPT,
                         request.getText(),
                         0.8, // a bit of creativity is the point here
                         SuggestExpressionAiResult.class
                 );
 
-        if (!result.isSuccess()
-                || result.getValue().getSuggestions() == null
-                || result.getValue().getSuggestions().isEmpty()) {
-
-            // Fall back to showing the raw response as a single
-            // "suggestion" rather than failing the request outright.
-            return SuggestExpressionResponse.builder()
-                    .original(request.getText())
-                    .suggestions(List.of(
-                            ExpressionSuggestion.builder()
-                                    .text(request.getText())
-                                    .note(result.getRaw())
-                                    .build()
-                    ))
-                    .build();
+        if (result.getSuggestions() == null
+                || result.getSuggestions().size() < 2
+                || result.getSuggestions().size() > 3
+                || result.getSuggestions().stream().anyMatch(item ->
+                item == null || item.getText() == null || item.getText().isBlank()
+                        || item.getNote() == null || item.getNote().isBlank())) {
+            throw new AIProviderException(
+                    "AI returned incomplete expression suggestions. Please retry."
+            );
         }
 
-        List<ExpressionSuggestion> suggestions = result.getValue()
+        List<ExpressionSuggestion> suggestions = result
                 .getSuggestions()
                 .stream()
                 .map(item -> ExpressionSuggestion.builder()
@@ -93,6 +88,7 @@ public class ExpressionSuggestionService {
     @AllArgsConstructor
     private static class SuggestExpressionAiResult {
 
+        @Size(min = 2, max = 3)
         private List<SuggestionItemAi> suggestions;
     }
 

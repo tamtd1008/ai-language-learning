@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: ai-language-learning-db
-    restart: unless-stopped
+    restart: "no"
     environment:
       POSTGRES_DB: ${DB_NAME:-ai_language_learning}
       POSTGRES_USER: ${DB_USERNAME:-postgres}
@@ -23,7 +23,7 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ai-language-learning-pgadmin
-    restart: unless-stopped
+    restart: "no"
     profiles: ["tools"]
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
@@ -33,5 +33,51 @@ services:
     depends_on:
       - postgres
 
+  # Optional fully local speech stack. Start explicitly with:
+  #   docker compose --profile local-speech up -d piper whisper
+  # Models are downloaded on first start and stored in named volumes.
+  piper:
+    build:
+      context: ./speech/piper
+    container_name: ai-language-learning-piper
+    restart: "no"
+    profiles: ["local-speech"]
+    environment:
+      PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - piper_models:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/info', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  whisper:
+    image: ghcr.io/ggml-org/whisper.cpp:main
+    container_name: ai-language-learning-whisper
+    restart: "no"
+    profiles: ["local-speech"]
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+    command: >-
+      if [ ! -f /models/ggml-$${WHISPER_MODEL:-base}.bin ]; then
+        ./models/download-ggml-model.sh $${WHISPER_MODEL:-base} /models;
+      fi;
+      exec whisper-server --host 0.0.0.0 --port 8080 --no-gpu --language auto
+      --model /models/ggml-$${WHISPER_MODEL:-base}.bin
+    ports:
+      - "127.0.0.1:5002:8080"
+    volumes:
+      - whisper_models:/models
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
 volumes:
   pgdata:
+  piper_models:
+  whisper_models:

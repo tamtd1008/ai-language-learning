@@ -16,9 +16,9 @@ import java.util.List;
 /**
  * Picks which SpeechToTextProvider/TextToSpeechProvider/
  * PronunciationAssessmentProvider beans are active, based on a single
- * app.speech.provider property (azure | mock) - all three switch
- * together since Azure is one account covering all of them. Same
- * selection pattern as AIProviderConfig.
+ * provider properties, each of which falls back to the legacy
+ * app.speech.provider property. STT, TTS, and pronunciation assessment
+ * can therefore use different local/cloud implementations.
  */
 @Slf4j
 @Configuration
@@ -28,7 +28,7 @@ public class SpeechProviderConfig {
     @Primary
     public SpeechToTextProvider activeSpeechToTextProvider(
             List<SpeechToTextProvider> providers,
-            @Value("${app.speech.provider}") String activeProviderName
+            @Value("${app.speech.stt.provider}") String activeProviderName
     ) {
 
         SpeechToTextProvider selected = providers.stream()
@@ -54,7 +54,7 @@ public class SpeechProviderConfig {
     @Primary
     public TextToSpeechProvider activeTextToSpeechProvider(
             List<TextToSpeechProvider> providers,
-            @Value("${app.speech.provider}") String activeProviderName
+            @Value("${app.speech.tts.provider}") String activeProviderName
     ) {
 
         TextToSpeechProvider selected = providers.stream()
@@ -80,7 +80,7 @@ public class SpeechProviderConfig {
     @Primary
     public PronunciationAssessmentProvider activePronunciationAssessmentProvider(
             List<PronunciationAssessmentProvider> providers,
-            @Value("${app.speech.provider}") String activeProviderName
+            @Value("${app.speech.assessment.provider}") String activeProviderName
     ) {
 
         PronunciationAssessmentProvider selected = providers.stream()

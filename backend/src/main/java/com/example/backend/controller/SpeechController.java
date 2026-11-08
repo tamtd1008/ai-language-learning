@@ -91,7 +91,9 @@ public class SpeechController {
         );
 
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("audio/mpeg"))
+                .contentType(MediaType.valueOf(
+                        textToSpeechProvider.getAudioContentType()
+                ))
                 .body(audio);
     }
 

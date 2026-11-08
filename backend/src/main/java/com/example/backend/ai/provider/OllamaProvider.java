@@ -2,6 +2,7 @@ package com.example.backend.ai.provider;
 
 import com.example.backend.ai.AIProvider;
 import com.example.backend.ai.AIProviderException;
+import com.example.backend.ai.AiResponseGuard;
 import com.example.backend.ai.AiChatMessage;
 import com.example.backend.ai.AiChatRequest;
 import com.example.backend.ai.AiChatResponse;
@@ -44,13 +45,21 @@ public class OllamaProvider implements AIProvider {
 
     private final String defaultModel;
 
+    private final String keepAlive;
+
+    private final int maxOutputTokens;
+
     public OllamaProvider(
             @Value("${app.ai.ollama.base-url}") String baseUrl,
             @Value("${app.ai.ollama.model}") String defaultModel,
-            @Value("${app.ai.ollama.timeout-seconds}") long timeoutSeconds
+            @Value("${app.ai.ollama.timeout-seconds}") long timeoutSeconds,
+            @Value("${app.ai.ollama.keep-alive}") String keepAlive,
+            @Value("${app.ai.ollama.max-output-tokens}") int maxOutputTokens
     ) {
         this.baseUrl = baseUrl;
         this.defaultModel = defaultModel;
+        this.keepAlive = keepAlive;
+        this.maxOutputTokens = maxOutputTokens;
 
         // Local inference (especially CPU-only, or the first call after
         // Ollama has to load the model into RAM) can genuinely take a
@@ -83,6 +92,7 @@ public class OllamaProvider implements AIProvider {
         Map<String, Object> body = buildRequestBody(request);
 
         OllamaChatResponse response;
+        long startedAt = System.nanoTime();
 
         try {
             response = restClient.post()
@@ -94,7 +104,16 @@ public class OllamaProvider implements AIProvider {
 
         } catch (RestClientException e) {
 
-            log.error("Failed to call Ollama at {}", baseUrl, e);
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            long elapsedMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+            log.error(
+                    "Failed to call Ollama at {} after {} ms ({}: {})",
+                    baseUrl,
+                    elapsedMs,
+                    cause.getClass().getSimpleName(),
+                    cause.getMessage(),
+                    e
+            );
 
             throw new AIProviderException(
                     "Could not reach Ollama at " + baseUrl +
@@ -112,8 +131,17 @@ public class OllamaProvider implements AIProvider {
             );
         }
 
+        String content = stripThinkingTags(response.getMessage().getContent());
+        if (AiResponseGuard.containsInternalReasoning(content)) {
+            log.warn(
+                    "Suppressed an internal-reasoning style response from Ollama model {}",
+                    response.getModel()
+            );
+        }
+        content = AiResponseGuard.learnerVisibleContent(content);
+
         return AiChatResponse.builder()
-                .content(stripThinkingTags(response.getMessage().getContent()))
+                .content(content)
                 .model(response.getModel())
                 .promptTokens(response.getPromptEvalCount())
                 .completionTokens(response.getEvalCount())
@@ -177,7 +205,9 @@ public class OllamaProvider implements AIProvider {
         }
 
         if (request.getMaxTokens() != null) {
-            options.put("num_predict", request.getMaxTokens());
+            options.put("num_predict", Math.min(request.getMaxTokens(), maxOutputTokens));
+        } else {
+            options.put("num_predict", maxOutputTokens);
         }
 
         Map<String, Object> body = new HashMap<>();
@@ -187,6 +217,16 @@ public class OllamaProvider implements AIProvider {
         );
         body.put("messages", messages);
         body.put("stream", false);
+        body.put("keep_alive", keepAlive);
+
+        if (request.isJsonMode()) {
+            body.put(
+                    "format",
+                    request.getJsonSchema() != null
+                            ? request.getJsonSchema()
+                            : "json"
+            );
+        }
 
         // Qwen3 (and other reasoning-capable models) can emit a long
         // internal "thinking" block before the actual answer. Not

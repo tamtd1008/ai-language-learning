@@ -1,14 +1,77 @@
-# Checklist kiểm thử API — SYSTEM, AI, LEARN
+# Hướng dẫn kiểm thử API — AI Language Learning
 
-Test theo đúng thứ tự bên dưới vì các module phụ thuộc dữ liệu lẫn nhau (Vocabulary cần Topic tồn tại, Session cần AiConfig đã active, gửi tin nhắn cần Session đang active...). Dùng Insomnia/Postman, base URL `http://localhost:8080`.
+Tài liệu này gộp hướng dẫn gửi request mẫu với checklist kiểm thử hồi quy theo thứ tự phụ thuộc giữa các chức năng. Dùng Postman hoặc Insomnia với backend mặc định tại `http://localhost:8080`.
 
-**Chuẩn bị:** đăng nhập lấy JWT của cả 2 tài khoản, dùng suốt các bước dưới:
-- `POST /api/auth/login` với `admin` / mật khẩu trong `.env` → lưu lại làm `{{admin_token}}`
-- `POST /api/auth/login` với 1 user thường (đăng ký trước nếu chưa có qua `/api/auth/register`) → lưu làm `{{user_token}}`
+## Chuẩn bị môi trường và công cụ
 
-Mọi request bên dưới (trừ login) cần header `Authorization: Bearer <token>`.
+1. Tạo file `.env` từ `.env.example` và điền cấu hình phù hợp.
+2. Khởi động PostgreSQL từ thư mục dự án bằng `docker compose up -d`.
+3. Khởi động backend trong thư mục `backend`: Windows dùng `mvnw.cmd spring-boot:run`; macOS/Linux dùng `./mvnw spring-boot:run`.
+4. Đăng ký một tài khoản user thường nếu chưa có. Tài khoản admin được seed theo `ADMIN_USERNAME` và `ADMIN_PASSWORD` trong `.env`.
+5. Trong Postman/Insomnia, đặt biến `baseUrl` = `http://localhost:8080`. Đăng nhập hai tài khoản và lưu JWT thành `admin_token` và `user_token`.
 
-## Danh sách nhanh (theo đúng thứ tự test)
+Các request JSON cần header `Content-Type: application/json`. Request đã đăng nhập cần `Authorization: Bearer {{user_token}}` hoặc `Authorization: Bearer {{admin_token}}` theo cột **Token**. Tất cả response JSON chuẩn có dạng `{ success, message, data, timestamp }`; audio tải về là dữ liệu nhị phân `audio/mpeg`. Request upload audio dùng `multipart/form-data`, không tự đặt `Content-Type` để Postman/Insomnia tạo multipart boundary.
+
+Thay `<id>`/`<topicId>`/`<sessionId>` bằng ID lấy từ response trước đó. User khác chủ sở hữu thường nhận 404 khi truy cập phiên hoặc robot riêng tư.
+
+## AUTH — Tài khoản và xác thực
+
+Các thao tác đăng ký tạo dữ liệu lâu dài; dùng username/email riêng cho mỗi lần chạy. Không đổi mật khẩu admin thật trong lúc kiểm thử — chỉ thử đổi mật khẩu trên tài khoản dùng riêng cho test.
+
+### Đăng ký tài khoản user
+
+`POST /api/auth/register` — không cần token:
+
+```json
+{
+  "username": "learner01",
+  "email": "learner01@example.com",
+  "password": "Learn123!",
+  "firstName": "Minh",
+  "lastName": "Nguyen"
+}
+```
+
+Kỳ vọng `201 Created`. Endpoint đăng ký không trả JWT; đăng nhập riêng để lấy token.
+
+### Đăng nhập
+
+`POST /api/auth/login` — không cần token:
+
+```json
+{
+  "username": "learner01",
+  "password": "Learn123!"
+}
+```
+
+Lưu `data.token` của user thường vào `user_token`. Đăng nhập admin bằng thông tin trong `.env`, lưu `data.token` vào `admin_token`.
+
+### Hồ sơ, mật khẩu và đăng xuất
+
+- `GET /api/users/me` — xem hồ sơ hiện tại.
+- `PUT /api/users/me` — cập nhật hồ sơ:
+
+```json
+{
+  "email": "minh.nguyen@example.com",
+  "firstName": "Minh",
+  "lastName": "Nguyen"
+}
+```
+
+- `PUT /api/users/me/password` — chỉ dùng với tài khoản test riêng:
+
+```json
+{
+  "currentPassword": "Learn123!",
+  "newPassword": "NewLearn123!"
+}
+```
+
+- `POST /api/auth/logout` — cần user token, không cần JSON body.
+
+## Danh sách nhanh (theo đúng thứ tự kiểm thử)
 
 | # | Nhóm | Method | Endpoint |
 |---|---|---|---|
@@ -171,7 +234,7 @@ AI-04 không có endpoint riêng — chỉ ảnh hưởng đến `systemPrompt` 
 | 6.13 | POST | `/api/sessions/{id}/evaluate` | user | id 1 session **ENDED** khác, chưa từng gửi tin nhắn nào | 400 `Session has no messages to evaluate` |
 | 6.14 | POST | `/api/sessions/{id}/evaluate` | **admin** (không phải chủ session) | id session của user khác | 404 `Session not found` |
 
-> Nếu model trả về không đúng định dạng JSON yêu cầu (hay gặp với model nhỏ chạy local), các endpoint AI-05/06/07/08 vẫn trả **200** nhưng field chính (`explanation`/`note`/`feedback`/`summary`) sẽ là nguyên văn phản hồi thô của AI — không phải lỗi hệ thống. Xem log server (`AI response was not valid JSON...`) để xác nhận.
+> Nếu model trả về JSON sai hoặc thiếu trường bắt buộc, các endpoint AI-05/06/07/08 trả lỗi AI (HTTP 502) với thông báo thử lại; phản hồi thô không được trả như kết quả hợp lệ. Xem log server để biết model/loại dữ liệu bị thiếu.
 
 ---
 
@@ -218,14 +281,14 @@ AI-04 không có endpoint riêng — chỉ ảnh hưởng đến `systemPrompt` 
 
 ## 10. STT-01→04 / TTS-01→04 — Nhận diện & tổng hợp giọng nói
 
-Mặc định `SPEECH_PROVIDER=mock` — các bước dưới vẫn chạy được nhưng `text`/audio trả về không phải kết quả thật. Muốn test thật, đổi `SPEECH_PROVIDER=azure` + điền `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` trong `.env` rồi restart app. Ghi âm sẵn 1 file `.wav` (PCM, 16kHz, mono) để test — hầu hết công cụ ghi âm online/Audacity export được định dạng này.
+Mặc định `SPEECH_PROVIDER=mock` — các bước dưới vẫn chạy được nhưng `text`/audio trả về không phải kết quả thật. Có thể dùng Azure (`SPEECH_PROVIDER=azure` cùng `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`) hoặc chạy local với `SPEECH_STT_PROVIDER=whisper`, `SPEECH_TTS_PROVIDER=piper`, `SPEECH_ASSESSMENT_PROVIDER=mock` và `docker compose --profile local-speech up -d piper whisper`. Ghi âm sẵn 1 file `.wav` (PCM, 16kHz, mono) để test.
 
 | # | Method | Endpoint | Token | Body | Kỳ vọng |
 |---|---|---|---|---|---|
-| 10.1 | POST | `/api/speech/transcribe` | user | multipart, field `audio` = file `.wav` | 200, `text` có nội dung (mock: `[MOCK] Transcribed N bytes of audio`) |
+| 10.1 | POST | `/api/speech/transcribe` | user | multipart, field `audio` = file `.wav` | 200, `text` có nội dung đã nhận dạng (mock: `[MOCK] Transcribed N bytes of audio`) |
 | 10.2 | POST | `/api/speech/transcribe` | user | không kèm file | 400 `Audio file is required` |
-| 10.3 | POST | `/api/speech/synthesize` | user | `{"text":"Hello, how are you?"}` | 200, response là file audio (`Content-Type: audio/mpeg`), tải về mở nghe được (nếu dùng Azure thật) |
-| 10.4 | POST | `/api/speech/synthesize` | user | `{"text":"Xin chào","languageCode":"vi-VN","voiceName":"vi-VN-HoaiMyNeural"}` | 200 — đổi giọng/ngôn ngữ qua request (TTS-02, TTS-03) |
+| 10.3 | POST | `/api/speech/synthesize` | user | `{"text":"Hello, how are you?"}` | 200, response là file audio (`audio/mpeg` với Azure, `audio/wav` với Piper), tải về mở nghe được |
+| 10.4 | POST | `/api/speech/synthesize` | user | `{"text":"Xin chào","languageCode":"vi-VN","voiceName":"vi-VN-HoaiMyNeural"}` | 200 — Azure đổi giọng/ngôn ngữ qua request; Piper dùng `voiceName` là mã model voice Piper (TTS-02, TTS-03) |
 | 10.5 | POST | `/api/speech/synthesize` | user | body rỗng `{}` | 400 `Text is required` |
 | 10.6 | POST | `/api/sessions/{id}/voice-messages` | user | multipart, field `audio` = file `.wav`, session đang `ACTIVE` | 201, `transcript` có nội dung, `reply` là tin nhắn AI (giống `/messages` text) |
 | 10.7 | GET | `/api/sessions/{id}/messages` | user | — | 200, tin nhắn vừa tạo ở 10.6 xuất hiện trong lịch sử như tin nhắn thường (STT-03: không có bảng riêng, dùng chung `conversation_messages`) |
@@ -348,6 +411,10 @@ PROGRESS-01/02 (lưu lịch sử) không có endpoint riêng — tự kiểm ch�
 | 15.14 | Kết nối với `deviceId` **chưa từng đăng ký** (`robot-not-exist`) | Handshake bị từ chối — 404, kèm log server `WebSocket handshake rejected: device '...' is not registered` |
 
 > Robot-02→05 (thu âm, gửi lên, nhận phản hồi AI, phát âm thanh) chính là mục 4 và mục 10 đã test rồi — robot chỉ gọi lại đúng những endpoint đó, không có gì mới để test riêng.
+
+### Kiểm thử tự động
+
+Backend có kiểm thử unit cho các nhánh handshake robot (401/403/404/cho phép chủ robot), JSON AI và chặn phần suy luận nội bộ (bao gồm dạng “the user just asked…”). Các luồng API nghiệp vụ còn lại trong hướng dẫn này hiện vẫn cần kiểm thử thủ công; Speech cần `SPEECH_PROVIDER=azure` cùng khóa Azure để đánh giá nhận dạng/phát âm thật. Changelog 012 chọn Qwen 3 1.7B cho phiên hội thoại mới nếu `default-conversation` đang hoạt động; các phiên cũ giữ cấu hình đã gắn.
 
 ---
 
