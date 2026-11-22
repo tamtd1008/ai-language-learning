@@ -47,7 +47,8 @@ public class SecurityConfig {
                         // Allow registration and login without authentication.
                         .requestMatchers(
                                 "/api/auth/register",
-                                "/api/auth/login"
+                                "/api/auth/login",
+                                "/demo/index.html", "/demo/app.js", "/demo/style.css"
                         ).permitAll()
 
                         // Restrict admin APIs to ADMIN users.

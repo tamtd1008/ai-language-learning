@@ -15,12 +15,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.http.client.MultipartBodyBuilder;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -73,27 +75,27 @@ public class WhisperCppSpeechToTextProvider implements SpeechToTextProvider {
                 ? "auto"
                 : requestedLanguage.split("[-_]")[0].toLowerCase(Locale.ROOT);
 
-        MultipartBodyBuilder multipart = new MultipartBodyBuilder();
+        LinkedMultiValueMap<String, Object> multipart = new LinkedMultiValueMap<>();
         ByteArrayResource audio = new ByteArrayResource(audioBytes) {
             @Override
             public String getFilename() {
                 return "audio.wav";
             }
         };
-        multipart.part("file", audio)
-                .filename("audio.wav")
-                .contentType(MediaType.parseMediaType("audio/wav"));
-        multipart.part("language", whisperLanguage);
-        multipart.part("detect_language", Boolean.toString(detectLanguage));
-        multipart.part("response_format", "json");
-        multipart.part("temperature", "0.0");
+        HttpHeaders audioHeaders = new HttpHeaders();
+        audioHeaders.setContentType(MediaType.parseMediaType("audio/wav"));
+        multipart.add("file", new HttpEntity<>(audio, audioHeaders));
+        multipart.add("language", whisperLanguage);
+        multipart.add("detect_language", Boolean.toString(detectLanguage));
+        multipart.add("response_format", "json");
+        multipart.add("temperature", "0.0");
 
         WhisperResponse response;
         try {
             response = restClient.post()
                     .uri("/inference")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(multipart.build())
+                    .body(multipart)
                     .retrieve()
                     .body(WhisperResponse.class);
         } catch (RestClientException e) {

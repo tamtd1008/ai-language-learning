@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luyện tiếng Anh cùng robot</title>
+<link rel="stylesheet" href="style.css">
+<main>
+  <h1>Luyện tiếng Anh cùng robot</h1>
+  <form id="login">
+    <label>Tài khoản <input name="username" autocomplete="username" required></label>
+    <label>Mật khẩu <input name="password" type="password" autocomplete="current-password" required></label>
+    <button>Đăng nhập</button>
+  </form>
+  <section id="lesson" hidden>
+    <div class="session-controls">
+      <label for="topic">Chủ đề của hội thoại mới
+        <select id="topic"><option value="">Tự do</option></select>
+      </label>
+      <button id="new-session" type="button">Bắt đầu hội thoại mới</button>
+    </div>
+    <p id="topic-status" role="status" hidden></p>
+    <h2 id="session-topic">Hội thoại tự do</h2>
+    <p id="topic-prompt" lang="en">Hi! Tell me your name and one thing you like.</p>
+    <ol id="messages"></ol>
+    <form id="turn">
+      <label>Câu tiếng Anh <input name="content" placeholder="Nhập câu tiếng Anh…" required></label>
+      <button>Gửi</button>
+    </form>
+    <button id="record" type="button">Thu âm</button>
+    <p id="transcript" role="status" hidden></p>
+    <button id="listen" type="button" disabled>Nghe câu trả lời của robot</button>
+    <p id="audio-text" hidden></p>
+    <audio id="player" controls hidden></audio>
+  </section>
+  <p id="status" role="status"></p>
+  <p id="robot-status" role="status"></p>
+</main>
+<script type="module" src="app.js"></script>
+</html>

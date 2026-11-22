@@ -1,0 +1,11 @@
+body { margin: 0; background: #eff5f4; color: #173531; font: 1rem/1.55 system-ui, sans-serif; }
+main { max-width: 42rem; margin: 2rem auto; padding: clamp(1rem, 4vw, 2rem); background: white; border-radius: 1rem; }
+form { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin-bottom: 1rem; }
+.session-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+form[hidden], audio[hidden] { display: none; }
+label, audio { display: block; }
+input, select { display: block; box-sizing: border-box; max-width: 100%; padding: .55rem; border: 1px solid #55736e; border-radius: .35rem; }
+button { padding: .55rem .9rem; border: 0; border-radius: .35rem; background: #145b51; color: white; font: inherit; }
+button:disabled { opacity: .55; }
+audio { max-width: 100%; margin-top: .75rem; }
+#messages { overflow-wrap: anywhere; }
