@@ -34,8 +34,48 @@ ollama pull qwen3:1.7b
 
 Dừng Spring Boot bằng `Ctrl+C`, rồi chạy lại lệnh khởi động bỏ `-MockAi`. Lần gửi đầu có thể mất thêm thời gian để Ollama nạp model.
 
-## Nối robot Gazebo
+## Chạy robot trong Gazebo trên WSL 2
 
-Trên Ubuntu 24.04 có ROS 2 Jazzy, Gazebo Harmonic và `ros-jazzy-ros-gz`, chạy mô phỏng, ROS bridge và script Python theo [hướng dẫn Gazebo](docs/GAZEBO-DEMO.md#robot-mô-phỏng). Đăng nhập bridge bằng cùng tài khoản web và đặt `ROBOT_BACKEND_URL` nếu backend chạy trên máy hoặc môi trường mạng khác. Khi web phát tiếng, robot gật đầu. Khi phát xong, robot về tư thế nghỉ.
+Cần Ubuntu 24.04 trên WSL 2, ROS 2 Jazzy, Gazebo Harmonic và gói `ros-jazzy-ros-gz`. Giữ Spring Boot chạy trên Windows. Mở ba terminal Ubuntu WSL. Trong mỗi terminal chạy:
 
-Xem [hướng dẫn kiểm thử MVP](TESTING-GUIDE.md) để chạy thử từng bước.
+```bash
+source /opt/ros/jazzy/setup.bash
+cd /mnt/d/Desktop/TTCD/ai-language-learning-publish
+```
+
+Đổi đường dẫn nếu repo nằm ở thư mục khác. Trong terminal 1, mở mô hình:
+
+```bash
+gz sim -r gazebo/language_robot.sdf
+```
+
+Trong terminal 2, truyền lệnh khớp cổ từ ROS 2 sang Gazebo:
+
+```bash
+ros2 run ros_gz_bridge parameter_bridge '/language_robot/head@std_msgs/msg/Float64]gz.msgs.Double'
+```
+
+Trong terminal 3, thử kết nối từ WSL tới Spring Boot:
+
+```bash
+export ROBOT_BACKEND_URL=http://localhost:8080
+curl -fI --connect-timeout 5 "$ROBOT_BACKEND_URL/demo/index.html"
+```
+
+Nếu PowerShell trên Windows truy cập được trang nhưng WSL không kết nối được qua localhost, thử IP của Windows khi WSL chạy ở chế độ NAT:
+
+```bash
+WIN_HOST=$(ip route show default | awk 'NR==1 {print $3}')
+export ROBOT_BACKEND_URL="http://$WIN_HOST:8080"
+curl -fI --connect-timeout 5 "$ROBOT_BACKEND_URL/demo/index.html"
+```
+
+Khi curl trả HTTP 200, vẫn trong terminal 3, chạy:
+
+```bash
+python3 gazebo/robot_bridge.py
+```
+
+Đăng nhập bằng cùng tài khoản dùng trên web. Nếu bridge báo `WAITING`, đăng nhập trang demo để đăng ký robot. Gửi một câu và bấm **Nghe câu trả lời của robot**. Khi có tiếng, bridge báo `SPEAKING` và robot gật đầu. Khi phát xong, robot trở về tư thế nghỉ. Giữ cả ba terminal chạy trong lúc demo. Để xoay góc nhìn quanh robot, giữ nút giữa chuột rồi kéo trong cửa sổ 3D.
+
+Xem [hướng dẫn kiểm thử MVP](TESTING-GUIDE.md) để nghiệm thu và xử lý lỗi theo từng đoạn kết nối.
