@@ -9,3 +9,4 @@ button { padding: .55rem .9rem; border: 0; border-radius: .35rem; background: #1
 button:disabled { opacity: .55; }
 audio { max-width: 100%; margin-top: .75rem; }
 #messages { overflow-wrap: anywhere; }
+#feedback { white-space: pre-line; }

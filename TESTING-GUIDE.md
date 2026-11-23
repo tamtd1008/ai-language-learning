@@ -20,6 +20,19 @@ PostgreSQL, Whisper và Piper cần ở trạng thái `healthy`. Mở [trang dem
 | Ngữ cảnh với Ollama | Trong cùng phiên, nói tên và môn thể thao bạn thích. Hỏi *Do you remember my name and what sport I like?* | Robot dùng thông tin trong phiên để trả lời. Nếu Whisper chép sai tên, sửa bản chép lời trước khi gửi để kiểm tra Qwen. |
 | Gazebo và ROS 2 | Chạy các tiến trình trong [hướng dẫn Gazebo](README.md#chạy-robot-trong-gazebo-trên-wsl-2), rồi thu âm và phát một câu đáp trên web. | Bridge báo `LISTENING` khi thu âm, `SPEAKING` khi phát. Robot gật đầu lúc phát và trở về tư thế nghỉ khi trạng thái chuyển về `IDLE`. |
 
+## Kiểm thử chấm điểm và đọc kết quả
+
+Chạy backend với Ollama, bỏ `-MockAi`. Dùng chủ đề **Ăn uống** và gửi vài lượt, chẳng hạn gọi cà phê, hỏi giá rồi chọn cách thanh toán.
+
+| Phép thử | Kết quả mong đợi |
+|---|---|
+| Mở phiên trống | Nút **Kết thúc và chấm điểm** chưa khả dụng. |
+| Bấm **Kết thúc và chấm điểm** sau khi có câu đáp | Đoạn chat vẫn còn. Trang khóa gửi và thu âm cho phiên đã kết thúc, rồi hiện ba điểm thành phần từ 0 đến 100 và điểm tổng. |
+| Đối chiếu điểm tổng | Kết quả bằng trung bình cộng của ba điểm thành phần, làm tròn đến một chữ số thập phân. |
+| Kiểm tra nhận xét | Trang hiện tóm tắt, điểm mạnh, điểm cần cải thiện và mức CEFR tham khảo. Nếu chỉ phần nhận xét lỗi, điểm vẫn hiển thị và có thể thử lấy lại nhận xét. |
+| Bấm **Nghe kết quả bằng tiếng Anh** | Piper đọc điểm theo văn bản hiển thị, kèm mức CEFR và lời khuyên nếu có. Nếu chạy Gazebo, bridge báo `SPEAKING` lúc phát và trở về `IDLE` khi phát xong. |
+| Mở hội thoại mới | Điểm, nhận xét và âm thanh của phiên trước không còn hiển thị. Có thể gửi câu trong phiên mới. |
+
 ## Nghiệm thu Gazebo
 
 1. Xác nhận mô hình xuất hiện trong Gazebo và mô phỏng đang chạy. Đặt cửa sổ web và Gazebo cạnh nhau để quan sát đồng thời.

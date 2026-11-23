@@ -29,6 +29,14 @@
     <button id="record" type="button">Thu âm</button>
     <p id="transcript" role="status" hidden></p>
     <button id="listen" type="button" disabled>Nghe câu trả lời của robot</button>
+    <button id="grade" type="button" disabled>Kết thúc và chấm điểm</button>
+    <section id="assessment" hidden>
+      <h3>Kết quả hội thoại</h3>
+      <p>Điểm dựa trên văn bản đã gửi. Phát âm chưa được chấm.</p>
+      <ul id="scores"></ul>
+      <p id="feedback"></p>
+      <button id="listen-score" type="button" disabled>Nghe kết quả bằng tiếng Anh</button>
+    </section>
     <p id="audio-text" hidden></p>
     <audio id="player" controls hidden></audio>
   </section>

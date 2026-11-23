@@ -17,6 +17,7 @@ public class SessionEvaluationResponse {
     private String strengths;
 
     private String areasToImprove;
+    private String spokenFeedback;
 
     // AI's best-effort CEFR estimate based on this one conversation -
     // informational only, does NOT automatically update LearnerLevel

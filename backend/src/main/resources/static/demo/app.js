@@ -6,7 +6,16 @@ const listen = byId('listen');
 const newSession = byId('new-session');
 const topicSelect = byId('topic');
 const player = byId('player');
+const grade = byId('grade');
+const listenScore = byId('listen-score');
 let token, session, robot, reply, recorder, recordingTimer, audioUrl;
+let score, evaluation;
+const scoreFields = [
+  ['grammarScore', 'Ngữ pháp', 'Grammar'],
+  ['vocabularyScore', 'Từ vựng', 'Vocabulary'],
+  ['conversationScore', 'Hội thoại', 'Conversation'],
+  ['overallScore', 'Điểm tổng', 'Overall score'],
+];
 let robotUpdate = Promise.resolve();
 let busy = false;
 const topicExamples = new Map([
@@ -16,11 +25,15 @@ const topicExamples = new Map([
 
 function updateControls() {
   for (const button of document.querySelectorAll('button')) button.disabled = busy;
-  turn.querySelector('button').disabled = busy || !session || !!recorder || !player.paused;
-  record.disabled = busy || !session || !player.paused;
+  const active = session?.status === 'ACTIVE';
+  turn.querySelector('button').disabled = busy || !active || !!recorder || !player.paused;
+  record.disabled = busy || !active || !player.paused;
   listen.disabled = busy || !reply || !!recorder || !player.paused;
   newSession.disabled = busy || !!recorder || !player.paused;
   topicSelect.disabled = newSession.disabled;
+  grade.disabled = newSession.disabled || !session || !reply || !!evaluation;
+  listenScore.disabled = newSession.disabled || !score;
+  player.controls = !busy && !recorder;
 }
 
 async function api(path, method = 'GET', body, binary = false) {
@@ -127,7 +140,7 @@ newSession.onclick = () => {
   const topicId = topicSelect.value;
   void run('Đang mở hội thoại mới…', async () => {
     if (session) {
-      await api('/sessions/' + session.id + '/end', 'PUT');
+      if (session.status === 'ACTIVE') await api('/sessions/' + session.id + '/end', 'PUT');
       session = null;
       reply = null;
       player.removeAttribute('src');
@@ -139,6 +152,11 @@ newSession.onclick = () => {
       }
       await robotState('IDLE');
     }
+    score = evaluation = null;
+    byId('assessment').hidden = true;
+    byId('scores').replaceChildren();
+    byId('feedback').textContent = '';
+    grade.textContent = 'Kết thúc và chấm điểm';
     try {
       session = await openSession(topicId);
     } catch (error) {
@@ -168,13 +186,14 @@ async function sendTurn(content) {
 
 turn.onsubmit = event => {
   event.preventDefault();
-  if (!session || recorder || !player.paused) return;
+  if (session?.status !== 'ACTIVE' || recorder || !player.paused) return;
   const content = turn.elements.content.value.trim();
   if (!content) return;
   void run('Đang chờ AI trả lời…', () => sendTurn(content));
 };
 
 record.onclick = async () => {
+  if (session?.status !== 'ACTIVE') return;
   if (recorder) {
     if (recorder.state === 'recording') recorder.stop();
     return;
@@ -226,23 +245,69 @@ record.onclick = async () => {
   });
 };
 
+grade.onclick = () => {
+  if (grade.disabled) return;
+  void run('Đang đánh giá hội thoại…', async () => {
+    if (session.status === 'ACTIVE') {
+      session = await api('/sessions/' + session.id + '/end', 'PUT');
+      grade.textContent = 'Thử chấm lại';
+    }
+    if (!score) {
+      score = await api('/sessions/' + session.id + '/score', 'POST');
+      byId('scores').replaceChildren(...scoreFields.map(([field, label]) => {
+        const item = document.createElement('li');
+        item.textContent = label + ': ' + score[field].toLocaleString('vi-VN') + '/100';
+        return item;
+      }));
+      byId('assessment').hidden = false;
+      grade.textContent = 'Thử lấy lại nhận xét';
+    }
+    evaluation = await api('/sessions/' + session.id + '/evaluate', 'POST');
+    byId('feedback').textContent = [
+      evaluation.summary,
+      'Điểm mạnh: ' + evaluation.strengths,
+      'Cần cải thiện: ' + evaluation.areasToImprove,
+      'CEFR tham khảo: ' + evaluation.estimatedLevel,
+    ].join('\n');
+    grade.textContent = 'Đã chấm điểm';
+    return 'Đã có kết quả. Bấm Nghe kết quả bằng tiếng Anh để phát.';
+  });
+};
+
+listenScore.onclick = () => {
+  if (listenScore.disabled) return;
+  void run('Piper đang tạo âm thanh…', async () => {
+    const text = [
+      ...scoreFields.map(([field, , label]) => label + ': ' + score[field] + ' out of 100.'),
+      evaluation && 'Estimated level: ' + evaluation.estimatedLevel + '.',
+      evaluation?.spokenFeedback?.trim().slice(0, 500),
+    ].filter(Boolean).join(' ');
+    const audio = await api('/speech/synthesize', 'POST', { text, languageCode: 'en-US' }, true);
+    return playAudio(audio, text);
+  });
+};
+
 listen.onclick = () => {
   if (recorder || !player.paused) return;
   void run('Piper đang tạo âm thanh…', async () => {
     const audio = await api('/sessions/' + session.id + '/messages/' + reply.id + '/audio', 'GET', undefined, true);
+    return playAudio(audio, reply.content);
+  });
+};
+
+async function playAudio(audio, text) {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     audioUrl = URL.createObjectURL(audio);
     player.src = audioUrl;
     player.hidden = false;
     const audioText = byId('audio-text');
-    audioText.textContent = 'Piper đọc câu này: “' + reply.content + '”';
+    audioText.textContent = 'Piper đọc câu này: “' + text + '”';
     audioText.hidden = false;
     return player.play().then(() => '').catch(error => {
       if (error.name !== 'NotAllowedError') throw error;
       return 'Bấm nút phát trên thanh âm thanh để nghe.';
     });
-  });
-};
+}
 
 player.onplay = () => { updateControls(); void robotState('SPEAKING'); };
 player.onpause = player.onended = () => { updateControls(); void robotState('IDLE'); };

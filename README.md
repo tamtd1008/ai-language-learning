@@ -34,6 +34,15 @@ ollama pull qwen3:1.7b
 
 Dừng Spring Boot bằng `Ctrl+C`, rồi chạy lại lệnh khởi động bỏ `-MockAi`. Lần gửi đầu có thể mất thêm thời gian để Ollama nạp model.
 
+## Chấm điểm và nghe kết quả
+
+1. Chạy demo với Ollama, bỏ `-MockAi`, rồi gửi vài lượt hội thoại.
+2. Bấm **Kết thúc và chấm điểm**. Trang giữ lại đoạn chat và hiển thị điểm ngữ pháp, từ vựng, hội thoại và điểm tổng. Điểm tổng là trung bình cộng của ba điểm thành phần, theo thang 100.
+3. Đọc nhận xét tiếng Việt và mức CEFR tham khảo. Nếu nhận xét lỗi sau khi đã có điểm, bấm **Thử lấy lại nhận xét**. Nếu bước chấm điểm lỗi, bấm **Thử chấm lại**.
+4. Bấm **Nghe kết quả bằng tiếng Anh**. Piper đọc các điểm, mức CEFR và lời khuyên ngắn nếu AI trả về. Khi bridge đang chạy, robot gật đầu lúc phát tiếng.
+
+Điểm dựa trên văn bản đã gửi, kể cả bản chép lời đã sửa. Tính năng này chưa chấm phát âm, ngữ điệu hay tốc độ nói.
+
 ## Chạy robot trong Gazebo trên WSL 2
 
 Cần Ubuntu 24.04 trên WSL 2, ROS 2 Jazzy, Gazebo Harmonic và gói `ros-jazzy-ros-gz`. Giữ Spring Boot chạy trên Windows. Mở ba terminal Ubuntu WSL. Trong mỗi terminal chạy:

@@ -49,7 +49,9 @@ public class SessionEvaluationService {
                     "in Vietnamese>\", \"strengths\": \"<what the " +
                     "learner did well, in Vietnamese>\", " +
                     "\"areasToImprove\": \"<concrete, specific things to " +
-                    "work on, in Vietnamese>\", \"estimatedLevel\": " +
+                    "work on, in Vietnamese>\", \"spokenFeedback\": " +
+                    "\"<one brief sentence in English with the main tip for the learner, " +
+                    "at most 240 characters, suitable for reading aloud>\", \"estimatedLevel\": " +
                     "\"<your best estimate of the learner's CEFR level " +
                     "based on this conversation - must be exactly one " +
                     "of A1, A2, B1, B2, C1, C2>\"}.";
@@ -103,10 +105,10 @@ public class SessionEvaluationService {
                         SessionEvaluationAiResult.class
                 );
 
-        if (parsed.getSummary().isBlank()
-                || parsed.getStrengths().isBlank()
-                || parsed.getAreasToImprove().isBlank()
-                || parsed.getEstimatedLevel().isBlank()) {
+        if (blank(parsed.getSummary())
+                || blank(parsed.getStrengths())
+                || blank(parsed.getAreasToImprove())
+                || blank(parsed.getEstimatedLevel())) {
             throw new AIProviderException(
                     "AI returned incomplete session evaluation. Please retry."
             );
@@ -122,7 +124,12 @@ public class SessionEvaluationService {
                                 : ""
                 )
                 .estimatedLevel(parsed.getEstimatedLevel())
+                .spokenFeedback(parsed.getSpokenFeedback())
                 .build();
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     // Internal shape of the AI's JSON reply.
@@ -137,6 +144,7 @@ public class SessionEvaluationService {
         private String strengths;
 
         private String areasToImprove;
+        private String spokenFeedback;
 
         private String estimatedLevel;
     }
